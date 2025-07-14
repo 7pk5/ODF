@@ -59,7 +59,7 @@ def main():
     packages = [
         ("numpy>=1.19.0,<2.0.0", "numpy", "Core numerical computing"),
         ("torch>=1.10.0 --index-url https://download.pytorch.org/whl/cpu", "torch", "PyTorch CPU version"),
-        ("sentence-transformers>=2.0.0", "sentence_transformers", "Sentence transformers"),
+        ("sentence-transformers>=2.6.0,<3.0.0", "sentence_transformers", "Sentence transformers"),
         ("faiss-cpu>=1.6.0", "faiss", "Vector search engine"),
         ("transformers>=4.15.0,<5.0.0", "transformers", "HuggingFace transformers"),
         ("scikit-learn>=1.0.0", "sklearn", "Machine learning library"),
@@ -88,8 +88,8 @@ def main():
         
         alternatives = {
             "torch": "torch>=1.8.0 --index-url https://download.pytorch.org/whl/cpu",
-            "sentence-transformers": "sentence-transformers>=1.2.0",
-            "transformers": "transformers>=4.10.0",
+            "sentence-transformers": "sentence-transformers==2.7.0",
+            "transformers": "transformers>=4.10.0,<5.0.0",
             "scipy": "scipy>=1.5.0",
             "scikit-learn": "scikit-learn>=0.24.0",
         }
