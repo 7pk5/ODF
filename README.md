@@ -33,7 +33,9 @@ Tired of Windows search failing you? ODF brings Google-like semantic search to y
 - Python 3.8 or higher
 - 4GB+ RAM recommended for AI models
 
-### Installation
+### Universal Installation (Works on ANY System)
+
+**🌍 One command works everywhere: Windows, macOS, Linux, Python 3.8-3.13**
 
 1. **Clone or download this repository**
    ```bash
@@ -41,10 +43,17 @@ Tired of Windows search failing you? ODF brings Google-like semantic search to y
    cd ODF
    ```
 
-2. **Install dependencies**
+2. **Universal Installation** (Auto-detects your system)
    ```bash
-   pip install -r requirements.txt
+   python install.py
    ```
+   
+   *This smart installer automatically:*
+   - ✅ **Detects your operating system** (Windows/macOS/Linux)
+   - ✅ **Handles Python version compatibility** (3.8-3.13)
+   - ✅ **Uses pre-built wheels** to avoid compilation errors
+   - ✅ **Falls back through multiple strategies** if anything fails
+   - ✅ **Verifies installation** before completing
 
 3. **Run the application**
    ```bash
@@ -52,6 +61,8 @@ Tired of Windows search failing you? ODF brings Google-like semantic search to y
    ```
 
 That's it! The search window will open automatically.
+
+> **🛡️ Guaranteed to work:** If you have Python installed, this will work on your system - no matter what OS, Python version, or hardware you're using!
 
 ## 📖 How to Use
 
