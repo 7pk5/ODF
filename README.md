@@ -1,4 +1,4 @@
-# Offline Document Finder (ODF) - The Solution
+# Offline Document Finder (ODF) - The Solution (MVP)
 
 **Finally, AI-powered file search that actually works!** 🎯
 
