@@ -55,7 +55,7 @@ Finds: "Grandma_Special_Dessert.pdf" ✅
 ```bash
 git clone https://github.com/7pk5/ODF.git
 cd ODF
-pip install -r requirements.txt
+python install.py
 python main.py
 ```
 
