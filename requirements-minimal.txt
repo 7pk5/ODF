@@ -1,0 +1,25 @@
+# Minimal requirements for maximum compatibility
+# Use this if requirements.txt fails on your system
+
+# Core dependencies - most stable versions
+numpy>=1.19.0,<2.0.0
+sentence-transformers>=2.0.0
+faiss-cpu>=1.6.0
+
+# Lightweight alternatives
+torch>=1.10.0 --index-url https://download.pytorch.org/whl/cpu
+transformers>=4.15.0,<5.0.0
+
+# Document processing - minimal versions
+pdfminer.six>=20200104
+python-docx>=0.8.10
+
+# Basic ML
+scikit-learn>=1.0.0
+scipy>=1.7.0
+
+# Utilities
+rank-bm25>=0.2.1
+nltk>=3.6.0
+tqdm>=4.50.0
+requests>=2.20.0

@@ -1,25 +1,38 @@
-# Universal requirements for Windows and macOS
+# Universal requirements for Windows, macOS, and Linux
 # Compatible with Python 3.8+ including Python 3.13
+# Optimized for maximum compatibility and pre-built wheels
 
-# Core AI and Search Dependencies
-sentence-transformers>=2.3.0
-faiss-cpu>=1.7.4
-numpy>=1.26.0,<2.0.0
+# Core dependencies - prioritize versions with pre-built wheels
+numpy>=1.21.0,<2.0.0 --prefer-binary
+torch>=1.13.0 --index-url https://download.pytorch.org/whl/cpu
+sentence-transformers>=2.0.0
+faiss-cpu>=1.7.0
 
-# Document Processingw
-pdfminer.six>=20231228
-python-docx>=1.1.0
+# Alternative lighter weight options for problematic systems
+# Uncomment these if the above fail:
+# torch-audio --index-url https://download.pytorch.org/whl/cpu
+# sentence-transformers[onnx]>=2.0.0
 
-# Additional dependencies
-torch>=2.1.0
-transformers>=4.35.0
-scikit-learn>=1.3.0
-scipy>=1.11.0
+# Document Processing - stable versions
+pdfminer.six>=20220524
+python-docx>=0.8.11
+PyPDF2>=3.0.0
 
-# Enhanced Search Accuracy
+# Machine Learning - conservative versions for stability
+transformers>=4.20.0,<5.0.0
+scikit-learn>=1.1.0
+scipy>=1.9.0
+
+# Search utilities
 rank-bm25>=0.2.2
-nltk>=3.8.1
+nltk>=3.7
 
-# Essential utilities
-tqdm>=4.65.0
-requests>=2.31.0
+# Essential utilities - stable versions
+tqdm>=4.60.0
+requests>=2.25.0
+click>=8.0.0
+pathlib2>=2.3.0; python_version<"3.4"
+
+# Optional performance enhancements (install only if compatible)
+# numba>=0.56.0; platform_machine!="aarch64"
+# psutil>=5.8.0
