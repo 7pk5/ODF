@@ -1,5 +1,7 @@
 # Offline Document Finder (ODF) - The Solution (MVP)
 
+See PROBLEM.md for a detailed breakdown of Windows search limitations and why traditional file search fails.
+
 **Finally, AI-powered file search that actually works!** 🎯
 
 Tired of Windows search failing you? ODF brings Google-like semantic search to your local documents - completely offline and private.
