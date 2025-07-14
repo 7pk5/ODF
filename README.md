@@ -1,6 +1,6 @@
 # Offline Document Finder (ODF) - The Solution (MVP)
 
-See PROBLEM.md for a detailed breakdown of Windows search limitations and why traditional file search fails.
+*See [PROBLEM.md](PROBLEM.md) for a detailed breakdown of Windows search limitations and why traditional file search fails.*
 
 **Finally, AI-powered file search that actually works!** 🎯
 
