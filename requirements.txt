@@ -5,7 +5,7 @@
 # Core dependencies - prioritize versions with pre-built wheels
 numpy>=1.21.0,<2.0.0 --prefer-binary
 torch>=1.13.0 --index-url https://download.pytorch.org/whl/cpu
-sentence-transformers>=2.0.0
+sentence-transformers>=2.6.0,<3.0.0
 faiss-cpu>=1.7.0
 
 # Alternative lighter weight options for problematic systems

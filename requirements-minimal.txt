@@ -3,7 +3,7 @@
 
 # Core dependencies - most stable versions
 numpy>=1.19.0,<2.0.0
-sentence-transformers>=2.0.0
+sentence-transformers>=2.6.0,<3.0.0
 faiss-cpu>=1.6.0
 
 # Lightweight alternatives
