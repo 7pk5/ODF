@@ -1,0 +1,25 @@
+# Universal requirements for Windows and macOS
+# Compatible with Python 3.8+ including Python 3.13
+
+# Core AI and Search Dependencies
+sentence-transformers>=2.3.0
+faiss-cpu>=1.7.4
+numpy>=1.26.0,<2.0.0
+
+# Document Processingw
+pdfminer.six>=20231228
+python-docx>=1.1.0
+
+# Additional dependencies
+torch>=2.1.0
+transformers>=4.35.0
+scikit-learn>=1.3.0
+scipy>=1.11.0
+
+# Enhanced Search Accuracy
+rank-bm25>=0.2.2
+nltk>=3.8.1
+
+# Essential utilities
+tqdm>=4.65.0
+requests>=2.31.0

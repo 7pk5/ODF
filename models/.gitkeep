@@ -1,0 +1,3 @@
+# Models Directory
+# Contains FAISS index files and embeddings data
+# Files in this directory are automatically generated during indexing
