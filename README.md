@@ -146,7 +146,7 @@ requests>=2.31.0              # HTTP requests
 |---------|---------------|--------------|-----|
 | **Semantic Search** | ❌ | ✅ | ✅ |
 | **Offline** | ✅ | ❌ | ✅ |
-| **Privacy** | ⚠️ | ❌ | ✅ |
+| **Privacy** | ✅ | ❌ | ✅ |
 | **Content Search** | ⚠️ | ✅ | ✅ |
 | **Natural Language** | ❌ | ✅ | ✅ |
 | **Speed** | ⚠️ | ✅ | ✅ |
