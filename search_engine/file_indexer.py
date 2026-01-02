@@ -1,219 +1,212 @@
 """
 File Indexer
-Scans folders and extracts content from PDF, DOCX, and TXT files.
+Scans folders and extracts content from PDF, DOCX, and TXT files using parallel processing.
 """
 
 import os
-import sys
+import hashlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pdfminer.high_level import extract_text as extract_pdf_text
-from pdfminer.pdfparser import PDFSyntaxError
 from docx import Document
 import re
+from tqdm import tqdm
+import logging
+
+# Suppress annoying PDFMiner warnings
+logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 class FileIndexer:
     def __init__(self):
         """Initialize the file indexer."""
-        self.supported_extensions = {'.pdf', '.docx', '.txt'}
+        self.supported_extensions = {'.pdf', '.docx'}
         self.system_folders = {
-            'C:\\Windows',
-            'C:\\Program Files',
-            'C:\\Program Files (x86)',
-            'C:\\System32',
-            'C:\\ProgramData',
-            'C:\\Users\\Default',
-            'C:\\Boot',
-            'C:\\Recovery'
+            'C:\\WINDOWS',
+            'C:\\PROGRAM FILES',
+            'C:\\PROGRAM FILES (X86)',
+            'C:\\SYSTEM32',
+            'C:\\PROGRAMDATA',
+            'C:\\USERS\\DEFAULT',
+            'C:\\BOOT',
+            'C:\\RECOVERY'
         }
     
-    def index_folder(self, folder_path):
+    def scan_directory(self, folder_path):
         """
-        Index all supported files in a folder.
-        
-        Args:
-            folder_path (str): Path to the folder to index
-            
-        Returns:
-            list: List of tuples (file_path, content)
+        Scans the folder and returns a list of supported files.
+        Useful for getting a total count before processing.
         """
         if not os.path.exists(folder_path):
             raise ValueError(f"Folder does not exist: {folder_path}")
-        
-        if self._is_system_folder(folder_path):
-            raise ValueError(f"Cannot index system folder: {folder_path}")
-        
-        files_data = []
-        
-        print(f"Scanning folder: {folder_path}")
-        
-        # Walk through directory tree
+            
+        all_files = []
         for root, dirs, files in os.walk(folder_path):
-            # Skip system directories
-            dirs[:] = [d for d in dirs if not self._is_system_folder(os.path.join(root, d))]
+            # Filter directories in-place
+            dirs[:] = [d for d in dirs if not self._should_skip_folder(os.path.join(root, d))]
             
             for file in files:
-                file_path = os.path.join(root, file)
-                
-                # Check if file has supported extension
                 _, ext = os.path.splitext(file.lower())
                 if ext in self.supported_extensions:
-                    try:
-                        content = self._extract_content(file_path, ext)
-                        if content and content.strip():
-                            files_data.append((file_path, content))
-                            print(f"Indexed: {file}")
-                        else:
-                            print(f"Empty content: {file}")
-                    except Exception as e:
-                        print(f"Error indexing {file}: {e}")
-                        continue
-        
-        print(f"Indexed {len(files_data)} files")
-        return files_data
-    
-    def _extract_content(self, file_path, extension):
+                    all_files.append(os.path.join(root, file))
+                    
+        print(f"Found {len(all_files)} supported files to scan.")
+        return all_files
+
+    def process_files(self, file_paths, existing_ids=None):
         """
-        Extract text content from a file based on its extension.
-        
-        Args:
-            file_path (str): Path to the file
-            extension (str): File extension
+        Process a list of files in parallel (multiprocessing) and yield documents.
+        """
+        if existing_ids is None:
+            existing_ids = set()
             
-        Returns:
-            str: Extracted text content
+        print(f"Processing {len(file_paths)} files with {len(existing_ids)} existing IDs...")
+        
+        # Prepare arguments for map (file_path, existing_ids)
+        # But we can't pass the huge set to every worker easily if not careful.
+        # Actually, we can check the ID *before* submitting to executor if we can calculate ID cheaply.
+        # Computing ID (md5 of path+mtime) is cheap. Extracting text is expensive.
+        
+        files_to_process = []
+        skipped_count = 0
+        
+        for f in file_paths:
+            # Pre-calculate ID to check if we can skip
+            try:
+                file_stats = os.stat(f)
+                doc_id = hashlib.md5(f"{f}_{file_stats.st_mtime}".encode()).hexdigest()
+                
+                if doc_id in existing_ids:
+                    skipped_count += 1
+                    continue
+                
+                files_to_process.append(f)
+            except:
+                continue
+                
+        print(f"Skipping {skipped_count} already indexed files. Processing {len(files_to_process)} new/modified files.")
+
+        print(f"Skipping {skipped_count} already indexed files. Processing {len(files_to_process)} new/modified files.")
+
+        # Revert to ThreadPoolExecutor for Windows stability (ProcessPool requires strict entry point guards)
+        with ThreadPoolExecutor(max_workers=min(32, os.cpu_count() * 4)) as executor:
+            # Submit all tasks
+            future_to_file = {executor.submit(self._process_single_path_independent, f): f for f in files_to_process}
+            
+            # Yield results as they complete
+            for future in as_completed(future_to_file):
+                try:
+                    result = future.result()
+                    if result:
+                        yield result
+                except Exception as e:
+                    print(f"Error processing file: {e}")
+        
+
+
+    def _process_single_path_independent(self, file_path):
+        """
+        Process a single file: extract text and metadata.
+        Designed to be called from a fresh instance in a worker process.
         """
         try:
-            if extension == '.txt':
-                return self._extract_txt_content(file_path)
-            elif extension == '.pdf':
-                return self._extract_pdf_content(file_path)
-            elif extension == '.docx':
-                return self._extract_docx_content(file_path)
-            else:
-                return ""
+            _, ext = os.path.splitext(file_path.lower())
+            
+            # We need to access extraction methods. Since we are in a fresh instance (wrapper created one),
+            # we can use self._extract_content.
+            content = self._extract_content(file_path, ext)
+            
+            if not content or not content.strip():
+                return None
+                
+            file_stats = os.stat(file_path)
+            doc_id = hashlib.md5(f"{file_path}_{file_stats.st_mtime}".encode()).hexdigest()
+            
+            return {
+                "id": doc_id,
+                "content": content,
+                "metadata": {
+                    "source": file_path,
+                    "filename": os.path.basename(file_path),
+                    "modified": file_stats.st_mtime,
+                    "size": file_stats.st_size,
+                    "type": ext
+                }
+            }
         except Exception as e:
-            print(f"Error extracting content from {file_path}: {e}")
-            return ""
+            # print(f"Error in processing {file_path}: {e}")
+            return None
+
+    def _extract_content(self, file_path, extension):
+        """Extract text content from a file based on its extension."""
+        if extension == '.txt':
+            return self._extract_txt_content(file_path)
+        elif extension == '.pdf':
+            return self._extract_pdf_content(file_path)
+        elif extension == '.docx':
+            return self._extract_docx_content(file_path)
+        return ""
     
     def _extract_txt_content(self, file_path):
-        """Extract content from TXT file."""
         encodings = ['utf-8', 'utf-16', 'latin-1', 'cp1252']
-        
         for encoding in encodings:
             try:
                 with open(file_path, 'r', encoding=encoding) as file:
-                    content = file.read()
-                    return self._clean_text(content)
-            except UnicodeDecodeError:
+                    return self._clean_text(file.read())
+            except:
                 continue
-            except Exception as e:
-                print(f"Error reading TXT file {file_path}: {e}")
-                return ""
-        
-        print(f"Could not decode TXT file {file_path} with any encoding")
         return ""
     
     def _extract_pdf_content(self, file_path):
-        """Extract content from PDF file."""
         try:
             content = extract_pdf_text(file_path)
             return self._clean_text(content)
-        except PDFSyntaxError:
-            print(f"Invalid PDF file: {file_path}")
-            return ""
-        except Exception as e:
-            print(f"Error extracting PDF content from {file_path}: {e}")
+        except:
             return ""
     
     def _extract_docx_content(self, file_path):
-        """Extract content from DOCX file."""
         try:
             doc = Document(file_path)
-            paragraphs = []
-            
-            # Extract text from paragraphs
+            full_text = []
             for paragraph in doc.paragraphs:
-                if paragraph.text.strip():
-                    paragraphs.append(paragraph.text.strip())
-            
-            # Extract text from tables
+                full_text.append(paragraph.text)
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
-                        if cell.text.strip():
-                            paragraphs.append(cell.text.strip())
-            
-            content = '\n'.join(paragraphs)
-            return self._clean_text(content)
-            
-        except Exception as e:
-            print(f"Error extracting DOCX content from {file_path}: {e}")
+                        full_text.append(cell.text)
+            return self._clean_text('\n'.join(full_text))
+        except:
             return ""
-    
+
     def _clean_text(self, text):
-        """
-        Clean and normalize extracted text.
-        
-        Args:
-            text (str): Raw text
-            
-        Returns:
-            str: Cleaned text
-        """
         if not text:
             return ""
-        
         # Remove excessive whitespace
         text = re.sub(r'\s+', ' ', text)
-        
-        # Remove control characters except newlines and tabs
+        # Remove null bytes etc
         text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
+        return text.strip()[:100000] # Cap text size to avoid huge tokens
+
+    def _should_skip_folder(self, folder_path):
+        """Check if a folder should be skipped (system, hidden, dev envs)."""
+        if not folder_path: return False
         
-        # Limit text length to prevent memory issues
-        max_length = 10000  # Adjust as needed
-        if len(text) > max_length:
-            text = text[:max_length]
+        name = os.path.basename(folder_path)
         
-        return text.strip()
-    
-    def _is_system_folder(self, folder_path):
-        """
-        Check if a folder is a system folder that should be avoided.
-        
-        Args:
-            folder_path (str): Path to check
+        # 1. Skip hidden directories
+        if name.startswith('.'):
+            return True
             
-        Returns:
-            bool: True if it's a system folder
-        """
-        if not folder_path:
-            return False
-        
-        normalized_path = os.path.normpath(folder_path.upper())
-        
-        for sys_folder in self.system_folders:
-            if normalized_path.startswith(sys_folder.upper()):
+        # 2. Skip specific ignore patterns
+        ignore_names = {
+            'node_modules', 'site-packages', 'dist-info', '__pycache__', 
+            'venv', 'env', 'odf_env', 'libs', 'include', 'scripts', 'bin', 'obj'
+        }
+        if name.lower() in ignore_names:
+            return True
+            
+        # 3. Skip system folders (check start of path)
+        norm_path = os.path.normpath(folder_path.upper())
+        for sys in self.system_folders:
+            if norm_path.startswith(sys):
                 return True
-        
+                
         return False
-    
-    def get_supported_extensions(self):
-        """
-        Get list of supported file extensions.
-        
-        Returns:
-            set: Set of supported file extensions
-        """
-        return self.supported_extensions.copy()
-    
-    def is_supported_file(self, file_path):
-        """
-        Check if a file is supported for indexing.
-        
-        Args:
-            file_path (str): Path to the file
-            
-        Returns:
-            bool: True if the file is supported
-        """
-        _, ext = os.path.splitext(file_path.lower())
-        return ext in self.supported_extensions

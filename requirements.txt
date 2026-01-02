@@ -5,9 +5,13 @@
 # Core dependencies - prioritize versions with pre-built wheels
 numpy>=1.21.0,<2.0.0 --prefer-binary
 torch>=1.13.0 --index-url https://download.pytorch.org/whl/cpu
-sentence-transformers>=2.6.0,<3.0.0
-faiss-cpu>=1.7.0
-
+chromadb>=0.4.22
+fastembed>=0.2.0
+pdfminer.six
+python-docx
+tk
+numpy
+tqdm
 # Alternative lighter weight options for problematic systems
 # Uncomment these if the above fail:
 # torch-audio --index-url https://download.pytorch.org/whl/cpu
@@ -36,3 +40,5 @@ pathlib2>=2.3.0; python_version<"3.4"
 # Optional performance enhancements (install only if compatible)
 # numba>=0.56.0; platform_machine!="aarch64"
 # psutil>=5.8.0
+customtkinter
+pillow

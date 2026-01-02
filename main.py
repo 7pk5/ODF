@@ -10,6 +10,7 @@ import sys
 import threading
 from ui.search_window import SearchWindow
 
+
 def main():
     """Main entry point for the ODF application."""
     print("Starting Offline Document Finder (ODF)...")
