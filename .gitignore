@@ -127,6 +127,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+odf_env/
+models/
 
 # Spyder project settings
 .spyderproject
