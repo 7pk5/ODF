@@ -19,8 +19,33 @@ class Embedder:
         self.model_name = model_name
         try:
             print(f"Loading embedding model: {model_name}")
-            # threads=None lets it use all available cores
-            self.model = TextEmbedding(model_name=model_name, threads=None)
+            
+            # Determine cache directory for models
+            import sys
+            import os
+            
+            if getattr(sys, 'frozen', False):
+                # If running as .exe, look in the internal temp folder (_MEIPASS)
+                # We will tell PyInstaller to put 'models' folder there.
+                base_dir = sys._MEIPASS
+            else:
+                # If running as script, assume 'models' folder is in project root
+                base_dir = os.path.join(os.path.dirname(__file__), '..')
+            
+            model_cache_dir = os.path.join(base_dir, 'models')
+            
+            # Create models dir if not exists (for script mode)
+            if not os.path.exists(model_cache_dir) and not getattr(sys, 'frozen', False):
+                os.makedirs(model_cache_dir)
+            
+            # Configure FastEmbed to use our custom cache dir
+            # and local_files_only=True ensures it doesn't try to download if missing
+            self.model = TextEmbedding(
+                model_name=model_name, 
+                threads=None,
+                cache_dir=model_cache_dir,
+                local_files_only=True 
+            )
             print(f"Model '{model_name}' loaded successfully!")
         except Exception as e:
             print(f"Failed to load model '{model_name}': {e}")

@@ -17,7 +17,17 @@ class VectorSearch:
         self.embedder = Embedder()
         
         # Initialize ChromaDB persistent client
-        self.db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'chroma_db')
+        # Persistence Logic:
+        # If frozen (exe), store data next to the executable file.
+        # If script, store in project root.
+        import sys
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.join(os.path.dirname(__file__), '..')
+            
+        self.db_path = os.path.join(base_dir, 'data', 'chroma_db')
+            
         if not os.path.exists(self.db_path):
             os.makedirs(self.db_path)
             
