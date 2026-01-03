@@ -245,3 +245,5 @@ meson-logs/
 # Local Data
 data/
 data_backup/
+
+RESUME_CONTENT.md
