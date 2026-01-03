@@ -11,7 +11,7 @@ Here are professional descriptions of the project tailored for your resume and L
 *   **Languages**: Python 3.10+
 *   **UI/UX**: CustomTkinter (Glassmorphism Overlay), Threading handling.
 *   **AI/ML**: Sentence-Transformers (`all-MiniLM-L6-v2` / `bge-small-en`), Vector Embeddings.
-*   **Database**: ChromaDB (Vector Store), SQLite.
+*   **Database**: ChromaDB (Vector Store) - *Uses **SQLite** internally for metadata storage*.
 *   **Libraries**: PDFMiner, PyMuPDF, Keyboard (Global Hotkeys).
 
 ## 📄 Bullet Points (Choose 3-4)
