@@ -11,6 +11,8 @@ import threading
 from ui.search_window import SearchWindow
 
 
+import keyboard
+
 def main():
     """Main entry point for the ODF application."""
     print("Starting Offline Document Finder (ODF)...")
@@ -23,12 +25,19 @@ def main():
     # Initialize the search window
     search_window = SearchWindow()
     
+    # Bind Global Hotkey
+    try:
+        keyboard.add_hotkey('ctrl+k', search_window.toggle_window)
+        print("✅ Global Hotkey Active: Press 'Ctrl + K' to toggle search")
+    except Exception as e:
+        print(f"⚠️ Could not bind hotkey: {e}")
+
     print("\n" + "="*60)
     print("🔍 Offline Document Finder (ODF) is ready!")
     print("="*60)
     print("📂 How to use:")
-    print("   1. The search window will open automatically")
-    print("   2. Add documents using the 'Add Documents' button")
+    print("   1. Press 'Ctrl + K' to toggle the search window")
+    print("   2. Add documents using the 'Index Folder' button")
     print("   3. Search your documents with AI-powered semantic search")
     print("\n💡 Tip: You can always restart by running: python main.py")
     print("="*60)
@@ -40,6 +49,9 @@ def main():
         search_window.root.mainloop()
     except KeyboardInterrupt:
         print("\n👋 Shutting down ODF...")
+        try:
+            keyboard.unhook_all()
+        except: pass
         sys.exit(0)
 
 if __name__ == "__main__":

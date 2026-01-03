@@ -1,162 +1,342 @@
-"""
-Spotlight Search UI for Offline Document Finder
-A sleek, borderless, dark-themed search interface using CustomTkinter.
-"""
-
 import customtkinter as ctk
-import tkinter as tk # For some constants or mixins if needed
+import tkinter as tk
 from tkinter import filedialog, messagebox
-import os
 import threading
+import os
+from PIL import Image
+
 from search_engine.vector_search import VectorSearch
 from search_engine.file_indexer import FileIndexer
 from utils.open_file import open_file
-from PIL import Image
 
-# Set Theme
+# -------------------- THEME --------------------
+THEME = {
+    "bg": "#0d0d0d",          # Ultra Dark
+    "card": "transparent",    # Ghost Cards (Default)
+    "card_hover": "#252525",  # Hover Grey
+    "border": "#444444",      # Lightened Border for visibility
+    "accent": "#3B8ED0",      # Electric Blue
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#808080",
+    "danger": "#C42B1C"
+}
+
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
 class SearchWindow:
+    WIDTH = 800
+    INITIAL_HEIGHT = 140
+    MAX_HEIGHT = 600
+
     def __init__(self):
         self.root = None
         self.vector_search = VectorSearch()
         self.file_indexer = FileIndexer()
-        self.current_folder = None
-        self.is_indexing = False
-        
-        # Dimensions
-        self.WIDTH = 800
-        self.INITIAL_HEIGHT = 90
-        self.MAX_HEIGHT = 600
-        
+
+        self.results = []
+        self.selected_index = -1
+        self.search_counter = 0
+
+    # -------------------- WINDOW --------------------
+    def toggle_window(self):
+        """Toggle window visibility."""
+        if not self.root:
+            self.show_window()
+        elif self.root.state() == 'withdrawn':
+            self.show_window()
+        else:
+            self.root.withdraw()
+
     def show_window(self):
-        """Show the search window."""
-        if self.root is None:
+        if not self.root:
             self._create_window()
         else:
             self.root.deiconify()
-            self._center_window()
             self.root.lift()
             self.root.focus_force()
             self.search_entry.focus_set()
-            
-        # Check if DB is empty and prompt user
-        self.root.after(500, self._check_empty_db)
-            
-    def _check_empty_db(self):
-        """Check if the database is empty and prompt user to index."""
-        try:
-            stats = self.vector_search.get_stats()
-            if stats['count'] == 0:
-                # Use standard tkinter messagebox since CTk doesn't have one builtin yet (or it's complex)
-                # But to keep it safe from threading issues, we usually run this on main thread.
-                # However, messagebox blocks. 
-                # Let's use a non-blocking way or just standard message box which is fine.
-                response = messagebox.askyesno("Welcome", "No documents found in index.\n\nWould you like to select a folder to index now?")
-                if response:
-                    self._browse_folder()
-        except Exception as e:
-            print(f"Error checking DB stats: {e}")
-    
+
+        self.root.after(400, self._check_empty_db)
+
     def _create_window(self):
-        """Create the main search window."""
-        # Use CTk instead of Tk for modern theming
         self.root = ctk.CTk()
-        self.root.title("ODF Spotlight")
-        
-        # Make borderless
         self.root.overrideredirect(True)
-        
-        # Center initially
-        self._center_window()
-        
-        # Main container with border effect (using frame color)
-        self.main_frame = ctk.CTkFrame(self.root, corner_radius=15, border_width=2, border_color="#3B8ED0")
-        self.main_frame.pack(fill="both", expand=True)
-        
-        # --- Search Bar Area ---
-        self.search_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        self.search_frame.pack(fill="x", padx=15, pady=(15, 5))
-        
-        # Search Icon
-        self.search_icon_label = ctk.CTkLabel(self.search_frame, text="🔍", font=("Segoe UI", 24))
-        self.search_icon_label.pack(side="left", padx=(5, 10))
-        
-        # Search Input
-        self.search_var = tk.StringVar()
-        self.search_var.trace("w", self._on_search_change)
-        
+        self.root.attributes("-topmost", True)
+        self.root.attributes("-alpha", 0.97) # Glassmorphism
+        self.root.configure(fg_color=THEME["bg"])
+        self._center()
+
+        self.main = ctk.CTkFrame(
+            self.root,
+            corner_radius=16,
+            fg_color=THEME["card"],
+            border_width=1,
+            border_color=THEME["border"]
+        )
+        self.main.pack(fill="both", expand=True)
+
+        self._build_search_bar()
+        self._build_results()
+        self._build_footer()
+        self._bind_keys()
+        self._bind_drag()
+
+    def _center(self):
+        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        x = (sw - self.WIDTH) // 2
+        y = sh // 4
+        self.root.geometry(f"{self.WIDTH}x{self.INITIAL_HEIGHT}+{x}+{y}")
+
+    # -------------------- SEARCH BAR --------------------
+    def _build_search_bar(self):
+        bar = ctk.CTkFrame(self.main, fg_color="transparent")
+        bar.pack(fill="x", padx=16, pady=(14, 6))
+
+        ctk.CTkLabel(bar, text="🔍", font=("Segoe UI", 22)).pack(side="left", padx=(4, 12))
+
+        self.query = tk.StringVar()
+        self.query.trace_add("write", self._on_query_change)
+
         self.search_entry = ctk.CTkEntry(
-            self.search_frame, 
-            textvariable=self.search_var,
-            width=600,
-            height=50,
-            font=("Segoe UI", 20),
-            placeholder_text="Type to search documents...",
-            border_width=0,
-            fg_color="transparent" 
+            bar,
+            textvariable=self.query,
+            font=("Segoe UI", 18),
+            height=48,
+            fg_color="transparent",
+            border_width=1,
+            border_color=THEME["border"],
+            corner_radius=8,
+            placeholder_text="Search documents..."
         )
         self.search_entry.pack(side="left", fill="x", expand=True)
         self.search_entry.focus()
-        
-        # Close Button (X)
-        self.close_btn = ctk.CTkButton(
-            self.search_frame, 
-            text="✕", 
-            width=30, 
-            height=30, 
-            fg_color="transparent", 
-            hover_color="#C42B1C", 
-            text_color="#888888",
-            font=("Arial", 16),
-            command=self.root.destroy
-        )
-        self.close_btn.pack(side="right", padx=5)
 
-        # --- Separator ---
-        self.separator = ctk.CTkFrame(self.main_frame, height=2, fg_color="#333333")
-        # Don't pack initially
-        
-        # --- Results Area ---
-        self.results_scroll = ctk.CTkScrollableFrame(
-            self.main_frame, 
-            corner_radius=10, 
+        ctk.CTkButton(
+            bar,
+            text="✕",
+            width=32,
+            height=32,
             fg_color="transparent",
-            height=0 # Start hidden
-        )
-        # Don't pack initially
-        
-        # --- Footer ---
-        self.footer_frame = ctk.CTkFrame(self.main_frame, height=30, corner_radius=0, fg_color="transparent")
-        self.footer_frame.pack(side="bottom", fill="x", padx=20, pady=10)
-        
-        self.status_label = ctk.CTkLabel(self.footer_frame, text="Ready", text_color="gray", font=("Segoe UI", 12))
-        self.status_label.pack(side="left")
-        
-        # Progress Bar (initially hidden)
-        self.progress_bar = ctk.CTkProgressBar(self.footer_frame, width=200, height=10, progress_color="#3B8ED0")
-        self.progress_bar.set(0)
-        
-        self.index_btn = ctk.CTkButton(
-            self.footer_frame, 
-            text="📁 Index Folder", 
-            command=self._browse_folder,
-            width=100,
-            height=25,
-            font=("Segoe UI", 12),
-            fg_color="#2B2B2B",
-            hover_color="#3A3A3A"
-        )
-        self.index_btn.pack(side="right")
-        
-        # Bindings
-        self.root.bind("<Escape>", self._on_escape)
-        self.root.bind("<FocusOut>", self._on_focus_out)
-        # Mouse drag to move window
-        self.main_frame.bind("<Button-1>", self._start_move)
-        self.main_frame.bind("<B1-Motion>", self._do_move)
+            hover_color=THEME["danger"],
+            command=self.root.destroy
+        ).pack(side="right")
 
+        ctk.CTkButton(
+            bar,
+            text="−", # Minimize/Hide
+            width=32,
+            height=32,
+            fg_color="transparent",
+            hover_color=THEME["card_hover"],
+            command=self.toggle_window
+        ).pack(side="right", padx=(0, 4))
+
+    # -------------------- RESULTS --------------------
+    def _build_results(self):
+        self.separator = ctk.CTkFrame(self.main, height=1, fg_color=THEME["border"])
+        self.results_view = ctk.CTkScrollableFrame(
+            self.main,
+            fg_color="transparent",
+            corner_radius=0
+        )
+
+    def _show_results(self):
+        self.separator.pack(fill="x", padx=12, pady=6)
+        self.results_view.pack(fill="both", expand=True, padx=12, pady=(0, 10))
+
+    def _hide_results(self):
+        self.separator.pack_forget()
+        self.results_view.pack_forget()
+        self._animate_height(self.INITIAL_HEIGHT)
+
+    # -------------------- FOOTER --------------------
+    def _build_footer(self):
+        footer = ctk.CTkFrame(self.main, fg_color="transparent")
+        footer.pack(fill="x", padx=16, pady=(0, 10))
+
+        self.status = ctk.CTkLabel(
+            footer,
+            text="Ready",
+            font=("Segoe UI", 12),
+            text_color=THEME["text_secondary"]
+        )
+        self.status.pack(side="left")
+
+        self.progress = ctk.CTkProgressBar(
+            footer,
+            width=200,
+            height=6,
+            progress_color=THEME["accent"]
+        )
+        self.progress.set(0)
+
+        ctk.CTkButton(
+            footer,
+            text="📁 Index Folder",
+            command=self._browse_folder,
+            fg_color="#2a2a2a",
+            width=120,
+            height=30
+        ).pack(side="right", padx=10, pady=5)
+
+    # -------------------- SEARCH --------------------
+    def _on_query_change(self, *_):
+        q = self.query.get().strip()
+        if len(q) > 1:
+            self._search(q)
+        else:
+            self._hide_results()
+
+    def _search(self, query):
+        def task():
+            res = self.vector_search.search(query, top_k=10)
+            self.root.after(0, lambda: self._render_results(res))
+
+        threading.Thread(target=task, daemon=True).start()
+
+    def _render_results(self, results):
+        for w in self.results_view.winfo_children():
+            w.destroy()
+
+        self.results = results
+        self.selected_index = -1
+
+        if not results:
+            self.status.configure(text="No results")
+            return
+
+        self._show_results()
+
+        for i, r in enumerate(results):
+            self._create_card(i, r)
+
+        height = min(self.MAX_HEIGHT, self.INITIAL_HEIGHT + len(results) * 78)
+        self._animate_height(height)
+        self.status.configure(text=f"{len(results)} results")
+
+    # -------------------- RESULT CARD --------------------
+    def _create_card(self, index, res):
+        frame = ctk.CTkFrame(
+            self.results_view,
+            fg_color=THEME["card"],
+            corner_radius=10,
+            border_width=0,
+            border_color=THEME["border"]
+        )
+        frame.pack(fill="x", pady=6)
+
+        icon = "📄"
+        ext = os.path.splitext(res.get("filename", "file"))[1].lower()
+        if ext == ".pdf": icon = "📕"
+        elif ext == ".docx": icon = "�"
+        elif ext == ".txt": icon = "�"
+
+        ctk.CTkLabel(frame, text=icon, font=("Segoe UI", 22)).pack(side="left", padx=12)
+
+        body = ctk.CTkFrame(frame, fg_color="transparent")
+        body.pack(side="left", fill="x", expand=True)
+
+        ctk.CTkLabel(
+            body,
+            text=res.get("filename", "Unknown"),
+            font=("Segoe UI", 14, "bold"),
+            text_color=THEME["accent"],
+            anchor="w"
+        ).pack(fill="x")
+
+        # DEBUG PRINT
+        # if "content" in res:
+        #      print(f"DEBUG: Result content for {res.get('filename')}: {repr(res['content'][:50])}")
+        
+        content = res.get("content", "")
+        preview_text = content[:100].replace("\n", " ") + "..."
+        if not content.strip():
+            preview_text = "No text content found (scanned PDF or empty)."
+
+        ctk.CTkLabel(
+            body,
+            text=preview_text,
+            font=("Segoe UI", 11),
+            text_color=THEME["text_secondary"],
+            anchor="w",
+            wraplength=520
+        ).pack(fill="x")
+
+        score = int(res.get("similarity", 0) * 100)
+        ctk.CTkLabel(
+            frame,
+            text=f"{score}%",
+            fg_color=THEME["accent"],
+            text_color="#000",
+            corner_radius=12,
+            width=48
+        ).pack(side="right", padx=12)
+
+        frame.bind("<Enter>", lambda e: frame.configure(fg_color=THEME["card_hover"]))
+        frame.bind("<Leave>", lambda e: frame.configure(fg_color=THEME["card"]))
+        frame.bind("<Button-1>", lambda e: open_file(res.get("file_path", "")))
+        
+        # Helper to bind child widgets too
+        for child in frame.winfo_children():
+            # Don't bind buttons if any
+            if not isinstance(child, ctk.CTkButton):
+                child.bind("<Button-1>", lambda e: open_file(res.get("file_path", "")))
+        for child in body.winfo_children():
+            child.bind("<Button-1>", lambda e: open_file(res.get("file_path", "")))
+
+        frame._ref = frame
+
+    # -------------------- KEYBOARD NAV --------------------
+    def _bind_keys(self):
+        self.root.bind("<Escape>", lambda e: self.root.destroy())
+        self.root.bind("<Down>", self._select_next)
+        self.root.bind("<Up>", self._select_prev)
+        self.root.bind("<Return>", self._open_selected)
+
+    def _select_next(self, _=None):
+        self._select(min(self.selected_index + 1, len(self.results) - 1))
+
+    def _select_prev(self, _=None):
+        self._select(max(self.selected_index - 1, 0))
+
+    def _select(self, index):
+        children = self.results_view.winfo_children()
+        if 0 <= self.selected_index < len(children):
+            children[self.selected_index].configure(fg_color=THEME["card"])
+
+        self.selected_index = index
+        if 0 <= index < len(children):
+            children[index].configure(fg_color=THEME["card_hover"])
+
+    def _open_selected(self, _=None):
+        if 0 <= self.selected_index < len(self.results):
+            open_file(self.results[self.selected_index]["file_path"])
+
+    # -------------------- DRAGGING --------------------
+    def _bind_drag(self):
+        # Bind dragging to all major container frames to ensure capture
+        frames = [self.main, self.status, self.search_entry, self.separator]
+        
+        # Also bind to the specific frames that might block clicks
+        if hasattr(self, 'footer_frame'): frames.append(self.footer_frame) # If you named it
+        
+        # Recursive bind helper
+        def bind_recursive(widget):
+            try:
+                widget.bind("<Button-1>", self._start_move)
+                widget.bind("<B1-Motion>", self._do_move)
+            except: pass
+            
+        # Bind main background
+        self.main.bind("<Button-1>", self._start_move)
+        self.main.bind("<B1-Motion>", self._do_move)
+        
+        # Bind Status Label
+        if self.status:
+            self.status.bind("<Button-1>", self._start_move)
+            self.status.bind("<B1-Motion>", self._do_move)
+            
     def _start_move(self, event):
         self.x = event.x
         self.y = event.y
@@ -168,183 +348,47 @@ class SearchWindow:
         y = self.root.winfo_y() + deltay
         self.root.geometry(f"+{x}+{y}")
 
-    def _center_window(self):
-        """Center the window on the screen."""
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        
-        x = (screen_width - self.WIDTH) // 2
-        y = (screen_height - self.MAX_HEIGHT) // 3
-        
-        self.root.geometry(f"{self.WIDTH}x{self.INITIAL_HEIGHT}+{x}+{y}")
-        
-    def _on_search_change(self, *args):
-        """Handle text changes in search bar (Auto-search)."""
-        query = self.search_var.get().strip()
-        if len(query) > 1:
-            self._search(query)
-        else:
-            self._hide_results()
-            
-    def _hide_results(self):
-        self.results_scroll.pack_forget()
-        self.separator.pack_forget()
-        self.root.geometry(f"{self.WIDTH}x{self.INITIAL_HEIGHT}")
-            
-    def _search(self, query):
-        """Perform search."""
-        def search_thread():
-            try:
-                results = self.vector_search.search(query, top_k=10)
-                self.root.after(0, lambda: self._display_results(results))
-            except Exception as e:
-                print(f"Search error: {e}")
-        
-        threading.Thread(target=search_thread, daemon=True).start()
-        
-    def _display_results(self, results):
-        """Display results and expand window."""
-        # Clear existing
-        for widget in self.results_scroll.winfo_children():
-            widget.destroy()
-            
-        if not results:
-            self.status_label.configure(text="No results found")
-            return
-            
-        self.separator.pack(fill="x", padx=10, pady=5)
-        self.results_scroll.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-        
-        for res in results:
-            self._create_result_card(res)
-            
-        # Expand window
-        # Estimate height: 60px per item + header/footer
-        content_height = min(self.MAX_HEIGHT, self.INITIAL_HEIGHT + 20 + (len(results) * 75))
-        self.root.geometry(f"{self.WIDTH}x{content_height}")
-        self.status_label.configure(text=f"Found {len(results)} matches")
+    # -------------------- ANIMATION --------------------
+    def _animate_height(self, target):
+        cur = self.root.winfo_height()
+        step = 12 if target > cur else -12
 
-    def _create_result_card(self, res):
-        """Create a card for a single result."""
-        fname = res.get('filename', 'Unknown')
-        path = res.get('file_path', '')
-        score = int(res.get('similarity', 0) * 100)
-        preview = res.get('content', '')[:100].replace('\n', ' ') + "..."
-        
-        ext = os.path.splitext(fname)[1].lower()
-        icon = "📄"
-        if ext == '.pdf': icon = "📕"
-        elif ext == '.docx': icon = "📘"
-        elif ext == '.txt': icon = "📝"
-        elif ext in ['.py', '.js', '.html', '.css']: icon = "💻"
-        
-        card = ctk.CTkFrame(self.results_scroll, fg_color="#2B2B2B", corner_radius=8)
-        card.pack(fill="x", pady=5, padx=5)
-        
-        # Icon
-        icon_lbl = ctk.CTkLabel(card, text=icon, font=("Segoe UI", 24))
-        icon_lbl.pack(side="left", padx=10, pady=10)
-        
-        # Text Content (Filename + Preview)
-        text_frame = ctk.CTkFrame(card, fg_color="transparent")
-        text_frame.pack(side="left", fill="x", expand=True, padx=5)
-        
-        name_lbl = ctk.CTkLabel(text_frame, text=fname, font=("Segoe UI", 14, "bold"), anchor="w")
-        name_lbl.pack(fill="x")
-        
-        preview_lbl = ctk.CTkLabel(text_frame, text=preview, font=("Segoe UI", 11), text_color="gray", anchor="w")
-        preview_lbl.pack(fill="x")
-        
-        # Score Badge
-        score_lbl = ctk.CTkLabel(card, text=f"{score}%", font=("Segoe UI", 10, "bold"), 
-                                fg_color="#3B8ED0", text_color="white", corner_radius=10, width=40)
-        score_lbl.pack(side="right", padx=10)
-        
-        # Hover Effect
-        def on_enter(e): card.configure(fg_color="#3A3A3A")
-        def on_leave(e): card.configure(fg_color="#2B2B2B")
-        
-        card.bind("<Enter>", on_enter)
-        card.bind("<Leave>", on_leave)
-        
-        # Click to open
-        def on_click(e):
-            open_file(path)
-            # self.root.destroy() # Keep window open
-            
-        # Bind click to all elements in card
-        for w in [card, icon_lbl, text_frame, name_lbl, preview_lbl, score_lbl]:
-            w.bind("<Button-1>", on_click)
+        def run():
+            nonlocal cur
+            if (step > 0 and cur < target) or (step < 0 and cur > target):
+                cur += step
+                self.root.geometry(f"{self.WIDTH}x{cur}")
+                self.root.after(8, run)
 
-    def _on_escape(self, event):
-        """Handle Esc key."""
-        if self.search_var.get():
-            self.search_var.set("")
-            self._hide_results()
-        else:
-            self.root.destroy()
-            
-    def _on_focus_out(self, event):
-        """Close window when clicking outside."""
-        # Simple implementation - if focus moves to another app, close
-        pass
-        
+        run()
+
+    # -------------------- INDEXING --------------------
     def _browse_folder(self):
-        """Open folder browser."""
         folder = filedialog.askdirectory()
-        if folder:
-            self.status_label.configure(text="Scanning files...")
-            self.progress_bar.pack(side="left", padx=10)
-            self.progress_bar.set(0)
-            self.index_btn.configure(state="disabled")
-            
-            threading.Thread(target=self._index_thread, args=(folder,), daemon=True).start()
-            
+        if not folder:
+            return
+
+        self.progress.pack(side="left", padx=12)
+        threading.Thread(target=self._index_thread, args=(folder,), daemon=True).start()
+
     def _index_thread(self, folder):
+        files = self.file_indexer.scan_directory(folder)
+        total = len(files)
+        
+        existing_ids = self.vector_search.get_all_ids()
+
+        def progress(i, name):
+            self.root.after(0, lambda: self.progress.set(i / total))
+
+        gen = self.file_indexer.process_files(files, existing_ids=existing_ids)
+        self.vector_search.add_documents(gen, progress_callback=progress)
+
+        self.root.after(0, lambda: self.progress.pack_forget())
+
+    def _check_empty_db(self):
         try:
-            # 1. Scan first
-            files = self.file_indexer.scan_directory(folder)
-            total_files = len(files)
-            
-            if total_files == 0:
-                 self.root.after(0, lambda: self._indexing_finished("No supported files found."))
-                 return
-
-            self.root.after(0, lambda: self.status_label.configure(text=f"Indexing {total_files} files..."))
-            
-            # 2. Get existing IDs for incremental update
-            existing_ids = self.vector_search.get_all_ids()
-            
-            # 3. Callback for progress
-            def on_progress(current_count, filename):
-                progress = current_count / total_files
-                self.root.after(0, lambda: self._update_progress(progress, current_count, total_files, filename))
-
-            # 4. Process (pass existing_ids to skip duplicates)
-            gen = self.file_indexer.process_files(files, existing_ids=existing_ids)
-            self.vector_search.add_documents(gen, progress_callback=on_progress)
-            
-            self.root.after(0, lambda: self._indexing_finished("Indexing Complete!"))
-            
-        except Exception as e:
-            error_msg = str(e)
-            self.root.after(0, lambda: self._indexing_error(error_msg))
-
-    def _update_progress(self, progress, current, total, filename):
-        self.progress_bar.set(progress)
-        self.status_label.configure(text=f"Scanning {current}/{total}: {filename[:20]}...")
-
-    def _indexing_finished(self, msg):
-        self.progress_bar.set(1)
-        self.status_label.configure(text=msg)
-        self.progress_bar.pack_forget()
-        self.index_btn.configure(state="normal")
-        messagebox.showinfo("Done", msg)
-
-    def _indexing_error(self, error_msg):
-        self.status_label.configure(text=f"Error: {error_msg}")
-        self.progress_bar.pack_forget()
-        self.index_btn.configure(state="normal")
-
-    def destroy(self):
-        if self.root: self.root.destroy()
+            if self.vector_search.get_stats()["count"] == 0:
+                if messagebox.askyesno("Welcome", "No documents indexed. Index now?"):
+                    self._browse_folder()
+        except:
+            pass

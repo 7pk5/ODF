@@ -241,3 +241,7 @@ meson-logs/
 *.so
 *.dylib
 *.dll
+
+# Local Data
+data/
+data_backup/

@@ -150,14 +150,7 @@ class VectorSearch:
     def search(self, query, top_k=10, filter_metadata=None):
         """
         Search for documents similar to the query.
-        
-        Args:
-            query (str): Search query
-            top_k (int): Number of results to return
-            filter_metadata (dict): Optional metadata filter
-            
-        Returns:
-            list: List of results
+        Implements Hybrid Search: Semantic Vector Search + Exact Keyword Boosting.
         """
         try:
             if self.collection.count() == 0:
@@ -165,39 +158,74 @@ class VectorSearch:
                 
             query_embedding = self.embedder.embed_text(query)
             
+            # Hybrid Search Strategy:
+            # 1. Fetch more candidates (3x) from vector search to cast a wider net
+            # 2. Check for exact keyword matches in these candidates
+            # 3. Apply boosting for exact matches
+            # 4. Re-rank and return top_k
+            
+            candidate_k = top_k * 3
+            
             results = self.collection.query(
                 query_embeddings=[query_embedding.tolist()],
-                n_results=top_k,
+                n_results=candidate_k,
                 where=filter_metadata
             )
-            
-            # Format results
-            formatted_results = []
             
             if not results['ids']:
                 return []
                 
-            # Unpack the first query result
+            # Unpack results
             ids = results['ids'][0]
             distances = results['distances'][0]
             metadatas = results['metadatas'][0]
             documents = results['documents'][0]
             
+            candidates = []
+            query_lower = query.lower().strip()
+            
             for i in range(len(ids)):
-                # Convert distance to similarity score (approximate)
+                # Base Semantic Score
                 # Cosine distance is 0 to 2. Similarity = 1 - (distance / 2) roughly
-                similarity = 1 - (distances[i])
+                base_score = 1 - (distances[i])
+                final_score = base_score
                 
-                formatted_results.append({
+                content_text = documents[i] or ""
+                metadata = metadatas[i] or {}
+                filename = metadata.get('filename', '').lower()
+                
+                # --- HYBRID BOOSTING LOGIC ---
+                boost_applied = False
+                
+                # 1. Title Match Boost (Very High)
+                if query_lower in filename:
+                    final_score += 0.25
+                    boost_applied = True
+                    
+                # 2. Exact Content Match Boost (Moderate)
+                if query_lower in content_text.lower():
+                    final_score += 0.15
+                    boost_applied = True
+                
+                # Ensure we don't exceed 1.0 (optional, but good for consistent UI%)
+                final_score = min(1.0, final_score)
+                
+                candidates.append({
                     'id': ids[i],
-                    'similarity': max(0.0, float(similarity)), # Ensure not negative
-                    'content': documents[i],
-                    'metadata': metadatas[i],
-                    'file_path': metadatas[i].get('source'),
-                    'filename': os.path.basename(metadatas[i].get('source', '')),
+                    'similarity': max(0.0, float(final_score)),
+                    'base_score': base_score, # Debugging
+                    'boosted': boost_applied,
+                    'content': content_text,
+                    'metadata': metadata,
+                    'file_path': metadata.get('source'),
+                    'filename': metadata.get('filename', 'Unknown'),
                 })
                 
-            return formatted_results
+            # Re-rank based on final_score
+            candidates.sort(key=lambda x: x['similarity'], reverse=True)
+            
+            # Return top_k
+            return candidates[:top_k]
             
         except Exception as e:
             print(f"Search error: {e}")
