@@ -1,44 +1,24 @@
-# Universal requirements for Windows, macOS, and Linux
-# Compatible with Python 3.8+ including Python 3.13
-# Optimized for maximum compatibility and pre-built wheels
+# ODF - Offline Document Finder
+# Minimal runtime dependencies (Python 3.8+)
 
-# Core dependencies - prioritize versions with pre-built wheels
-numpy>=1.21.0,<2.0.0 --prefer-binary
-torch>=1.13.0 --index-url https://download.pytorch.org/whl/cpu
+# Vector database (local, no server needed)
 chromadb>=0.4.22
-fastembed>=0.2.0
-pdfminer.six
-python-docx
-tk
-numpy
-tqdm
-# Alternative lighter weight options for problematic systems
-# Uncomment these if the above fail:
-# torch-audio --index-url https://download.pytorch.org/whl/cpu
-# sentence-transformers[onnx]>=2.0.0
 
-# Document Processing - stable versions
+# AI embedding engine (ONNX-based, no PyTorch needed)
+fastembed>=0.2.0
+
+# Document text extraction
 pdfminer.six>=20220524
 python-docx>=0.8.11
-PyPDF2>=3.0.0
 
-# Machine Learning - conservative versions for stability
-transformers>=4.20.0,<5.0.0
-scikit-learn>=1.1.0
-scipy>=1.9.0
-
-# Search utilities
-rank-bm25>=0.2.2
-nltk>=3.7
-
-# Essential utilities - stable versions
-tqdm>=4.60.0
-requests>=2.25.0
-click>=8.0.0
-pathlib2>=2.3.0; python_version<"3.4"
-
-# Optional performance enhancements (install only if compatible)
-# numba>=0.56.0; platform_machine!="aarch64"
-# psutil>=5.8.0
+# UI
 customtkinter
 pillow
+
+# Global hotkey (Ctrl+K)
+keyboard
+
+# Core utilities
+numpy>=1.21.0,<2.0.0
+tqdm>=4.60.0
+requests>=2.25.0

@@ -22,10 +22,11 @@ class VectorSearch:
         # If script, store in project root.
         import sys
         if getattr(sys, 'frozen', False):
-            base_dir = os.path.dirname(sys.executable)
+            # EXE: store user data in %APPDATA%/ODF so it always has write permission
+            base_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'ODF')
         else:
             base_dir = os.path.join(os.path.dirname(__file__), '..')
-            
+
         self.db_path = os.path.join(base_dir, 'data', 'chroma_db')
             
         if not os.path.exists(self.db_path):

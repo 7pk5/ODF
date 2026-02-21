@@ -228,8 +228,10 @@ models/metadata.pkl
 *.tmp
 *.temp
 
-# Python 3.13 specific build artifacts
+# PyInstaller build artifacts
 build/
+dist/
+*.spec
 *.egg-info/
 .mesonpy-*/
 meson-logs/
@@ -245,5 +247,15 @@ meson-logs/
 # Local Data
 data/
 data_backup/
+
+# AI tool configs
+.claude/
+
+# Windows reserved device name (created accidentally)
+nul
+
+# Local run helpers (not needed in repo)
+run_project.bat
+RUN_INSTRUCTIONS.md
 
 RESUME_CONTENT.md
