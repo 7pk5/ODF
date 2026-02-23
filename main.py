@@ -11,6 +11,7 @@ import threading
 from ui.search_window import SearchWindow
 
 
+
 import keyboard
 
 def main():

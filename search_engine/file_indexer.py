@@ -39,7 +39,7 @@ class FileIndexer:
             raise ValueError(f"Folder does not exist: {folder_path}")
             
         all_files = []
-        for root, dirs, files in os.walk(folder_path):
+        for root, dirs, files in os.walk(folder_path, followlinks=True):
             # Filter directories in-place
             dirs[:] = [d for d in dirs if not self._should_skip_folder(os.path.join(root, d))]
             
@@ -87,7 +87,7 @@ class FileIndexer:
         print(f"Skipping {skipped_count} already indexed files. Processing {len(files_to_process)} new/modified files.")
 
         # Revert to ThreadPoolExecutor for Windows stability (ProcessPool requires strict entry point guards)
-        with ThreadPoolExecutor(max_workers=min(32, os.cpu_count() * 4)) as executor:
+        with ThreadPoolExecutor(max_workers=min(8, os.cpu_count())) as executor:
             # Submit all tasks
             future_to_file = {executor.submit(self._process_single_path_independent, f): f for f in files_to_process}
             
@@ -115,11 +115,12 @@ class FileIndexer:
             content = self._extract_content(file_path, ext)
             
             if not content or not content.strip():
+                print(f"⚠️ Warning: No text content found in {os.path.basename(file_path)}")
                 return None
                 
             file_stats = os.stat(file_path)
             doc_id = hashlib.md5(f"{file_path}_{file_stats.st_mtime}".encode()).hexdigest()
-            
+            #  this Dict is Return
             return {
                 "id": doc_id,
                 "content": content,
@@ -132,7 +133,7 @@ class FileIndexer:
                 }
             }
         except Exception as e:
-            # print(f"Error in processing {file_path}: {e}")
+            print(f"❌ Error processing {file_path}: {e}")
             return None
 
     def _extract_content(self, file_path, extension):

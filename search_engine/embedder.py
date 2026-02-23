@@ -38,13 +38,14 @@ class Embedder:
             if not os.path.exists(model_cache_dir) and not getattr(sys, 'frozen', False):
                 os.makedirs(model_cache_dir)
             
-            # Configure FastEmbed to use our custom cache dir
-            # and local_files_only=True ensures it doesn't try to download if missing
+            # When running as EXE the model is bundled inside — use local only.
+            # When running as a script it may need to download on first use.
+            is_frozen = getattr(sys, 'frozen', False)
             self.model = TextEmbedding(
-                model_name=model_name, 
+                model_name=model_name,
                 threads=None,
                 cache_dir=model_cache_dir,
-                local_files_only=True 
+                local_files_only=is_frozen,
             )
             print(f"Model '{model_name}' loaded successfully!")
         except Exception as e:
