@@ -21,9 +21,17 @@ class VectorSearch:
         # If frozen (exe), store data next to the executable file.
         # If script, store in project root.
         import sys
+        import platform
         if getattr(sys, 'frozen', False):
-            # EXE: store user data in %APPDATA%/ODF so it always has write permission
-            base_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'ODF')
+            # Packaged app: store user data in platform-appropriate location
+            system = platform.system()
+            if system == 'Windows':
+                base_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'ODF')
+            elif system == 'Darwin':
+                base_dir = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', 'ODF')
+            else:
+                base_dir = os.path.join(os.environ.get('XDG_DATA_HOME', os.path.expanduser('~/.local/share')), 'ODF')
+
         else:
             base_dir = os.path.join(os.path.dirname(__file__), '..')
 

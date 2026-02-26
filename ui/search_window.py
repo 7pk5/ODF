@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import threading
 import os
+import platform
 import datetime
 
 from search_engine.vector_search import VectorSearch
@@ -24,6 +25,7 @@ TEXT_1     = "#ffffff"   # Primary text
 TEXT_2     = "#98989e"   # Secondary / muted text
 ACCENT     = "#0A84FF"   # Button accent
 DANGER     = "#ff453a"   # Danger / close
+FONT       = "Segoe UI" if platform.system() == "Windows" else "Helvetica"
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -118,7 +120,7 @@ class SearchWindow:
         # Search glyph
         ctk.CTkLabel(
             bar, text="⌕",
-            font=("Segoe UI", 26),
+            font=(FONT, 26),
             text_color=TEXT_2,
             width=34,
         ).pack(side="left", padx=(4, 8))
@@ -129,7 +131,7 @@ class SearchWindow:
         self.search_entry = ctk.CTkEntry(
             bar,
             textvariable=self.query,
-            font=("Segoe UI", 20),
+            font=(FONT, 20),
             fg_color="transparent",
             border_width=0,
             text_color=TEXT_1,
@@ -142,7 +144,7 @@ class SearchWindow:
         # ESC pill
         esc = ctk.CTkLabel(
             bar, text="esc",
-            font=("Segoe UI", 10),
+            font=(FONT, 10),
             text_color=TEXT_2,
             fg_color=HOVER,
             corner_radius=4,
@@ -160,7 +162,7 @@ class SearchWindow:
 
         self.status_lbl = ctk.CTkLabel(
             foot, text="",
-            font=("Segoe UI", 11),
+            font=(FONT, 11),
             text_color=TEXT_2,
         )
         self.status_lbl.pack(side="left", padx=2)
@@ -174,7 +176,7 @@ class SearchWindow:
         ctk.CTkButton(
             foot,
             text="＋  Index Folder",
-            font=("Segoe UI", 11),
+            font=(FONT, 11),
             fg_color=HOVER,
             hover_color="#4a4a4c",
             text_color=TEXT_1,
@@ -237,7 +239,7 @@ class SearchWindow:
         ctk.CTkLabel(
             self.detail,
             text="←  select a result",
-            font=("Segoe UI", 12),
+            font=(FONT, 12),
             text_color=TEXT_2,
             justify="center",
         ).place(relx=0.5, rely=0.44, anchor="center")
@@ -254,13 +256,13 @@ class SearchWindow:
         pad.pack(fill="both", expand=True, padx=16, pady=16)
 
         # Big file icon
-        ctk.CTkLabel(pad, text=icon, font=("Segoe UI", 40)).pack(anchor="w")
+        ctk.CTkLabel(pad, text=icon, font=(FONT, 40)).pack(anchor="w")
 
         # Filename
         ctk.CTkLabel(
             pad,
             text=res.get("filename", "Unknown"),
-            font=("Segoe UI", 13, "bold"),
+            font=(FONT, 13, "bold"),
             text_color=TEXT_1,
             wraplength=self.DETAIL_W - 36,
             justify="left",
@@ -285,9 +287,9 @@ class SearchWindow:
         ]:
             r = ctk.CTkFrame(pad, fg_color="transparent")
             r.pack(fill="x", pady=2)
-            ctk.CTkLabel(r, text=label,  font=("Segoe UI", 11),
+            ctk.CTkLabel(r, text=label,  font=(FONT, 11),
                          text_color=TEXT_2, width=60, anchor="w").pack(side="left")
-            ctk.CTkLabel(r, text=value,  font=("Segoe UI", 11),
+            ctk.CTkLabel(r, text=value,  font=(FONT, 11),
                          text_color=TEXT_1, anchor="w").pack(side="left")
 
         # Thin rule
@@ -295,14 +297,14 @@ class SearchWindow:
 
         # Content preview
         ctk.CTkLabel(pad, text="Preview",
-                     font=("Segoe UI", 11), text_color=TEXT_2, anchor="w").pack(fill="x")
+                     font=(FONT, 11), text_color=TEXT_2, anchor="w").pack(fill="x")
 
         raw     = res.get("content", "").strip()
         preview = (raw[:200] + "…") if len(raw) > 200 else raw or "No preview available."
         ctk.CTkLabel(
             pad,
             text=preview,
-            font=("Segoe UI", 10),
+            font=(FONT, 10),
             text_color=TEXT_2,
             wraplength=self.DETAIL_W - 36,
             justify="left",
@@ -313,7 +315,7 @@ class SearchWindow:
         ctk.CTkButton(
             pad,
             text="Open File  →",
-            font=("Segoe UI", 12, "bold"),
+            font=(FONT, 12, "bold"),
             fg_color=ACCENT,
             hover_color="#0066cc",
             corner_radius=8,
@@ -388,7 +390,7 @@ class SearchWindow:
         row.pack_propagate(False)
 
         # Icon
-        ctk.CTkLabel(row, text=icon, font=("Segoe UI", 22), width=38).pack(
+        ctk.CTkLabel(row, text=icon, font=(FONT, 22), width=38).pack(
             side="left", padx=(6, 2)
         )
 
@@ -399,7 +401,7 @@ class SearchWindow:
         name = ctk.CTkLabel(
             txt,
             text=res.get("filename", "Unknown"),
-            font=("Segoe UI", 13, "bold"),
+            font=(FONT, 13, "bold"),
             text_color=TEXT_1,
             anchor="w",
         )
@@ -410,7 +412,7 @@ class SearchWindow:
         path_lbl = ctk.CTkLabel(
             txt,
             text=short_p,
-            font=("Segoe UI", 10),
+            font=(FONT, 10),
             text_color=TEXT_2,
             anchor="w",
         )
@@ -420,7 +422,7 @@ class SearchWindow:
         score_lbl = ctk.CTkLabel(
             row,
             text=f"{score}%",
-            font=("Segoe UI", 11, "bold"),
+            font=(FONT, 11, "bold"),
             text_color=TEXT_2,
             width=38,
             anchor="e",
@@ -529,7 +531,7 @@ class SearchWindow:
         # Warn if user selected a root drive (D:\, C:\, etc.)
         norm = os.path.normpath(folder)
         drive, tail = os.path.splitdrive(norm)
-        if drive and tail in ("\\", "/", ""):
+        if (drive and tail in ("\\", "/", "")) or norm == "/":
             proceed = messagebox.askyesno(
                 "Large Folder Warning",
                 f"You selected an entire drive ({drive}\\).\n\n"

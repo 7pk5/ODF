@@ -10,9 +10,8 @@ import sys
 import threading
 from ui.search_window import SearchWindow
 
+from pynput import keyboard as pynput_kb
 
-
-import keyboard
 
 def main():
     """Main entry point for the ODF application."""
@@ -26,9 +25,13 @@ def main():
     # Initialize the search window
     search_window = SearchWindow()
     
-    # Bind Global Hotkey
+    # Bind Global Hotkey (pynput works on Linux without root)
+    hotkey_listener = None
     try:
-        keyboard.add_hotkey('ctrl+k', search_window.toggle_window)
+        hotkey_listener = pynput_kb.GlobalHotKeys({
+            '<ctrl>+k': search_window.toggle_window
+        })
+        hotkey_listener.start()
         print("✅ Global Hotkey Active: Press 'Ctrl + K' to toggle search")
     except Exception as e:
         print(f"⚠️ Could not bind hotkey: {e}")
@@ -50,12 +53,9 @@ def main():
         search_window.root.mainloop()
     except KeyboardInterrupt:
         print("\n👋 Shutting down ODF...")
-        try:
-            keyboard.unhook_all()
-        except: pass
+        if hotkey_listener:
+            hotkey_listener.stop()
         sys.exit(0)
 
 if __name__ == "__main__":
     main()
-
-

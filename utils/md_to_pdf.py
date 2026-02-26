@@ -43,12 +43,15 @@ def convert_md_to_pdf(source_md, output_pdf):
     return True
 
 if __name__ == "__main__":
-    # Source is the artifact path
-    source_path = r"C:\Users\kaust\.gemini\antigravity\brain\3d8b571a-c2d1-4fd6-8d07-ff54a8f5f641\interview_guide.md"
-    # Output to the project directory
-    output_path = r"d:\FInalYear-Krunal\ODF\Interview_Guide.pdf"
-    
+    import sys
+    if len(sys.argv) != 3:
+        print("Usage: python md_to_pdf.py <source.md> <output.pdf>")
+        sys.exit(1)
+    source_path = sys.argv[1]
+    output_path = sys.argv[2]
+
     if os.path.exists(source_path):
         convert_md_to_pdf(source_path, output_path)
     else:
         print(f"Source file not found: {source_path}")
+

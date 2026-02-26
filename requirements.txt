@@ -15,8 +15,8 @@ python-docx>=0.8.11
 customtkinter
 pillow
 
-# Global hotkey (Ctrl+K)
-keyboard
+# Global hotkey (Ctrl+K) - cross-platform, no root needed on Linux
+pynput
 
 # Core utilities
 numpy>=1.21.0,<2.0.0

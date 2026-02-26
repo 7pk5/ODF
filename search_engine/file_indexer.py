@@ -19,6 +19,7 @@ class FileIndexer:
     def __init__(self):
         """Initialize the file indexer."""
         self.supported_extensions = {'.pdf', '.docx'}
+        import platform
         self.system_folders = {
             'C:\\WINDOWS',
             'C:\\PROGRAM FILES',
@@ -29,6 +30,19 @@ class FileIndexer:
             'C:\\BOOT',
             'C:\\RECOVERY'
         }
+        # Add Linux system folders
+        if platform.system() == 'Linux':
+            self.system_folders.update({
+                '/usr', '/bin', '/sbin', '/proc', '/sys', '/dev',
+                '/boot', '/lib', '/lib64', '/snap', '/run', '/tmp',
+                '/etc', '/var', '/opt'
+            })
+        # Add macOS system folders
+        elif platform.system() == 'Darwin':
+            self.system_folders.update({
+                '/System', '/Library', '/usr', '/bin', '/sbin', '/private'
+            })
+
     
     def scan_directory(self, folder_path):
         """
