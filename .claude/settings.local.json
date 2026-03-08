@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(odf_envScriptspip.exe uninstall torch torchvision torchaudio transformers scikit-learn scipy nltk PyPDF2 rank-bm25 -y)",
+      "Bash(cmd /c \"cd /d D:\\\\FInalYear-Krunal\\\\ODF && odf_env\\\\Scripts\\\\pip.exe uninstall torch torchvision torchaudio transformers scikit-learn scipy nltk PyPDF2 rank-bm25 -y\")",
+      "Bash(cmd /c \"D:\\\\FInalYear-Krunal\\\\ODF\\\\odf_env\\\\Scripts\\\\pip.exe list 2>&1 | findstr /i \"\"torch transform scikit scipy nltk PyPDF2 rank\"\"\")",
+      "Bash(cmd /c \"C:\\\\Users\\\\kaust\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python311\\\\Scripts\\\\pip.exe list 2>&1 | findstr /i \"\"torch transform scikit scipy nltk\"\"\")",
+      "Bash(cmd /c \"D:\\\\FInalYear-Krunal\\\\ODF\\\\odf_env\\\\Scripts\\\\pip.exe list\")"
+    ]
+  }
+}
