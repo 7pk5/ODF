@@ -1,103 +1,244 @@
 # Offline Document Finder (ODF)
 
-**"Search Like You Think"** – A Local-First, AI-Powered Document Search Engine.
+> **"Search Like You Think"** — A local-first, AI-powered semantic document search engine for Windows.
 
-![UI Screenshot](https://via.placeholder.com/800x400?text=ODF+Ultra+Dark+UI+Overview)
-*(Note: Replace with actual screenshot of your new UI)*
+[![CI](https://github.com/7pk5/ODF/actions/workflows/ci.yml/badge.svg)](https://github.com/7pk5/ODF/actions/workflows/ci.yml)
 
-## 🚀 Problem Solved
+ODF replaces traditional keyword-based file search with a hybrid semantic retrieval system. It understands the *concepts* inside your documents, not just their filenames — so you can find a file called `Q3_Strategy_v2.pdf` by searching *"marketing campaign planning"*.
 
-Traditional file search is broken. It relies on **exact keyword matching**, meaning if you name a file "2023_Financial_Review.pdf" and search for "Budget Report", you'll find nothing.
-
-ODF solves this by using **Semantic Search (AI)**. It reads your documents, understands the *concepts* inside them (not just the text), and lets you search using natural language.
-
-* **Problem**: "I don't remember the filename, just what it's about."
-* **Solution**: "Show me the project files regarding the new marketing strategy." -> *Finds 'Q3_Strategy_v2.pdf'*
+All processing happens on-device. No cloud. No telemetry. No internet required.
 
 ---
 
-## 🏗️ Architecture
+## Table of Contents
 
-ODF is built as a **Native Desktop Overlay** using a modern Python stack. It is designed to be lightweight, fast, and completely offline.
-
-### 1. The Frontend (UI Layer)
-
-* **Framework**: `CustomTkinter` (Modernized wrapper around Tkinter).
-* **Design System**: "Glassmorphism" Overlay.
-  * **Transparency**: `alpha=0.97` for a native, integrated feel.
-  * **Windowing**: Borderless window (`overrideredirect=True`) that floats on top (`-topmost`).
-  * **Theme**: Ultra-Dark (`#0d0d0d`) with Electric Blue (`#3B8ED0`) accents.
-* **Global Hotkey**: Uses `keyboard` library to listen for `Ctrl+K` at the OS level to toggle the window instantly.
-
-### 2. The Backend (Engine Layer)
-
-* **Orchestration**: Python `threading` ensures the UI never hangs while indexing or searching.
-* **Text Extraction**:
-  * `pdfminer.six` for PDFs.
-  * `python-docx` for Word documents.
-  * Native reading for Text files.
-
-### 3. The "Brain" (Storage & Retrieval)
-
-* **Vector Database**: `ChromaDB` (Persistent local storage).
-  * Stores the "embeddings" (mathematical representations) of your documents.
-  * No external server required; runs embedded within the app.
-* **AI Model**: `sentence-transformers` (specifically `BAAI/bge-small-en-v1.5`).
-  * Converts text into 384-dimensional vectors.
-  * Highly optimized for semantic similarity.
+- [Problem Statement](#problem-statement)
+- [Architecture](#architecture)
+- [Search Pipeline](#search-pipeline)
+- [Indexing Pipeline](#indexing-pipeline)
+- [Tech Stack](#tech-stack)
+- [Privacy & Data Storage](#privacy--data-storage)
+- [Getting Started](#getting-started)
+- [Building the Executable](#building-the-executable)
+- [Supported File Types](#supported-file-types)
 
 ---
 
-## 🧠 The "RAG" Concept (Retrieve-and-Rank)
+## Problem Statement
 
-While ODF is a search engine, it utilizes the core **Retrieval** component of **RAG (Retrieval-Augmented Generation)** systems.
+Standard OS file search (`Windows Search`, `Spotlight`) operates on **exact keyword matching**. If a document is named `2023_Financial_Review.pdf` and you search for `"budget report"`, it returns nothing.
 
-### How it works:
+This is a fundamental limitation — users rarely remember exact filenames. They remember *what the document was about*.
 
-1. **Ingestion (Indexing)**:
-
-   * Documents are split into **Chunks** (e.g., 500 characters).
-   * Each chunk is passed through the AI Model to generate an **Embedding Vector**.
-   * These vectors are stored in **ChromaDB**.
-2. **Retrieval (The Search)**:
-
-   * When you type a query, it is also converted into a vector.
-   * We compare the *angle* (Cosine Similarity) between your query vector and all document vectors.
-   * **Result**: We find the chunks that are *conceptually* closest to your query.
-
-### 🧪 Hybrid Search Implementation
-
-ODF uses a **Hybrid Search** strategy to ensure robustness. Pure AI search sometimes misses exact keywords (e.g., specific ID numbers), so we combine functionality:
-
-1. **Broad Cast**: We fetch **30 candidates** (3x the needed amount) using the AI Vector Search.
-2. **Keyword Check**: We scan these candidates for **Exact Substring Matches** of your query.
-3. **Boosting Logic**:
-   * **Title Match**: +25% Score Bonus (If filename contains the query).
-   * **Content Match**: +15% Score Bonus (If text contains the query).
-4. **Re-Ranking**: The final list is sorted by this new weighted score.
-
-**Why?** This gives you the best of both worlds:
-
-* Searching "Invoices" (Concept) finds files named "Billing_2024".
-* Searching "INV-2024-001" (Exact Key) forces that specific file to the top.
+ODF addresses this by indexing the semantic content of every document. A query is matched against the meaning of the text, not just its surface characters.
 
 ---
 
-## 🔒 Privacy & Security
+## Architecture
 
-* **Local-First**: No data is ever sent to the cloud. All embeddings are calculated on your CPU.
-* **Offline**: Works entirely without an internet connection.
-* **Data Control**: The database lives in `data/chroma_db` and can be deleted at any time.
+ODF is structured as a three-layer desktop application:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                        UI Layer                              │
+│          CustomTkinter overlay — borderless, always-on-top   │
+│          Global hotkey (Ctrl+K), debounced search, animated  │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+┌───────────────────────────▼──────────────────────────────────┐
+│                     Engine Layer                             │
+│   VectorSearch  ←→  Embedder (FastEmbed / ONNX)             │
+│   FileIndexer   ←→  ThreadPoolExecutor (8 workers)          │
+└───────────────────────────┬──────────────────────────────────┘
+                            │
+┌───────────────────────────▼──────────────────────────────────┐
+│                     Storage Layer                            │
+│   ChromaDB (SQLite-backed) — persistent, local, no server   │
+│   data/chroma_db/   (script mode)                           │
+│   %APPDATA%/ODF/    (executable mode)                       │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### UI Layer
+
+- **Framework**: CustomTkinter (modern Tkinter wrapper)
+- **Window style**: Borderless overlay (`overrideredirect=True`), always-on-top, draggable
+- **Theme**: Ultra-dark (`#1c1c1e` background, `#0A84FF` accent)
+- **Global hotkey**: `Ctrl+K` registered at OS level via `keyboard` library
+- **Search behavior**: 280ms debounce on input, results rendered on daemon thread, UI updated via `root.after()`
+- **Navigation**: Arrow keys to move between results, `Enter` to open, `Escape` to dismiss
+- **Animation**: Smooth height transition between idle (102px) and expanded state (~380px)
+
+### Engine Layer
+
+- **Embedder**: FastEmbed + `BAAI/bge-small-en-v1.5` — ONNX runtime, no PyTorch dependency, 384-dimensional output
+- **VectorSearch**: ChromaDB collection with cosine similarity, hybrid re-ranking on top of vector retrieval
+- **FileIndexer**: Parallel document scanner — 8 worker threads, MD5-based deduplication, multi-encoding text fallback
+
+### Storage Layer
+
+- **Backend**: ChromaDB 0.4.22+ (embedded SQLite, no external server)
+- **Document IDs**: `{md5(filepath + mtime)}_chunk_{index}` — deterministic, supports incremental re-indexing
+- **Metadata per chunk**: `source`, `filename`, `modified`, `size`, `type`, `chunk_index`
 
 ---
 
-## 🛠️ Usage
+## Search Pipeline
 
-1. **Launch**: Run `python main.py`.
-2. **Toggle**: Press **Ctrl+K** anywhere.
-3. **Index**: Click "Index Folder" and select a directory containing your documents.
-4. **Search**: Type freely!
+```
+User query (≥ 2 chars)
+        │
+        ▼
+  280ms debounce
+        │
+        ▼
+  Embedder.embed_text()  →  384-dim vector
+        │
+        ▼
+  ChromaDB.query(n_results=30)  →  top-30 candidates (3× overfetch)
+        │
+        ▼
+  Hybrid re-ranking:
+    base_score  = 1 - cosine_distance
+    title_boost = +0.25  if query ⊆ filename
+    body_boost  = +0.15  if query ⊆ chunk_text
+    final_score = min(base_score + boosts, 1.0)
+        │
+        ▼
+  Sort by final_score, return top 8–10 results
+        │
+        ▼
+  UI renders results  →  first result auto-selected
+```
+
+The overfetch (30 candidates for top-10 results) ensures keyword-exact matches that might rank lower under pure cosine distance still surface after boosting. This handles both semantic queries ("invoices from last year") and exact lookups ("INV-2024-001") robustly.
 
 ---
 
-*Built with ❤️ using Python, ChromaDB, and CustomTkinter.*
+## Indexing Pipeline
+
+```
+User selects folder
+        │
+        ▼
+  FileIndexer.scan_directory()
+    - Recursively walks directory tree
+    - Skips hidden folders, venv, __pycache__, system paths
+    - Collects .pdf, .docx, .txt paths
+        │
+        ▼
+  Deduplication check
+    - Computes MD5(filepath + mtime) per file
+    - Skips files already present in ChromaDB
+        │
+        ▼
+  ThreadPoolExecutor (8 workers) — parallel extraction
+    PDF   →  pdfminer.six
+    DOCX  →  python-docx (paragraphs + tables)
+    TXT   →  UTF-8 / UTF-16 / Latin-1 / CP1252 fallback chain
+        │
+        ▼
+  Text cleaning
+    - Compress whitespace
+    - Strip null bytes and control characters
+    - Cap at 100,000 characters per document
+        │
+        ▼
+  VectorSearch.add_documents()
+    - Split into chunks (1000 chars, 100 char overlap)
+    - Batch embed via FastEmbed (batch size = 32)
+    - Upsert to ChromaDB in batches of 100
+        │
+        ▼
+  Progress reported to UI (throttled every 5 documents)
+```
+
+---
+
+## Tech Stack
+
+| Component | Technology | Notes |
+|-----------|------------|-------|
+| UI framework | CustomTkinter | Modern Tkinter, dark theme, native feel |
+| Vector database | ChromaDB 0.4.22+ | SQLite-backed, embedded, no server |
+| Embedding model | BAAI/bge-small-en-v1.5 | 384-dim, ONNX, ~130MB |
+| Inference runtime | FastEmbed | ONNX Runtime, no PyTorch required |
+| PDF extraction | pdfminer.six | Layout-aware text extraction |
+| DOCX extraction | python-docx | Paragraphs + table cells |
+| Global hotkey | keyboard | OS-level key capture |
+| Packaging | PyInstaller | Single `.exe`, model bundled |
+| Concurrency | ThreadPoolExecutor | 8 workers for parallel indexing |
+
+---
+
+## Privacy & Data Storage
+
+- **Fully offline**: No network calls at runtime. The embedding model is bundled inside the executable.
+- **Local storage only**: All vectors and metadata are stored in `data/chroma_db/` (script mode) or `%APPDATA%\ODF\data\chroma_db\` (exe mode).
+- **No telemetry**: Nothing leaves the machine.
+- **Data portability**: Delete the `chroma_db/` directory to wipe the index entirely.
+
+---
+
+## Download
+
+A pre-built Windows executable is available — no Python installation required.
+
+**[Download ODF.exe](https://drive.google.com/file/d/1-HyNhxTyl6uBrq5v6ctnsE8-KGoGbbu7/view)**
+
+> First launch takes 20–30 seconds while the executable extracts its bundled dependencies. Subsequent launches are faster.
+
+---
+
+## Getting Started
+
+**Prerequisites**: Python 3.9+, Windows 10/11
+
+```bash
+# 1. Clone the repository
+git clone <repo-url>
+cd ODF
+
+# 2. Create and activate virtual environment
+python -m venv odf_env
+odf_env\Scripts\activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Run
+python main.py
+```
+
+**First launch**: A setup dialog will prompt you to index a folder. Click **Index Folder**, select a directory, and wait for indexing to complete. After that, press `Ctrl+K` anywhere to open the search overlay.
+
+---
+
+## Building the Executable
+
+Produces a single `dist/ODF.exe` with all dependencies and the AI model bundled.
+
+```bash
+python build_exe.py
+```
+
+The build script will:
+1. Download and cache the embedding model locally under `models/`
+2. Clean previous `dist/` and `build/` artifacts
+3. Run PyInstaller with `--onefile --windowed` and the appropriate `--add-data` and `--collect-all` flags
+
+The resulting executable requires no Python installation on the target machine. First launch takes 20–30 seconds for extraction; subsequent launches are faster.
+
+---
+
+## Supported File Types
+
+| Extension | Parser |
+|-----------|--------|
+| `.pdf` | pdfminer.six |
+| `.docx` | python-docx |
+| `.txt` | Built-in (multi-encoding) |
+
+---
+
+*Built by Parimal Kalpande and Krunal Wankhade.*
