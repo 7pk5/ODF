@@ -2,8 +2,6 @@
 
 > **"Search Like You Think"** — A local-first, AI-powered semantic document search engine for Windows.
 
-[![CI](https://github.com/7pk5/ODF/actions/workflows/ci.yml/badge.svg)](https://github.com/7pk5/ODF/actions/workflows/ci.yml)
-
 ODF replaces traditional keyword-based file search with a hybrid semantic retrieval system. It understands the *concepts* inside your documents, not just their filenames — so you can find a file called `Q3_Strategy_v2.pdf` by searching *"marketing campaign planning"*.
 
 All processing happens on-device. No cloud. No telemetry. No internet required.
