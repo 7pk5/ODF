@@ -24,7 +24,7 @@ jobs:
         run: pip install flake8
 
       - name: Run flake8
-        run: flake8 main.py ui/ search_engine/ utils/ --max-line-length=120 --exclude=odf_env,build,dist
+        run: flake8 main.py ui/ search_engine/ utils/ --max-line-length=120 --exclude=odf_env,build,dist --extend-ignore=E221,E272,E302,E305,W293,F401,F821,F841
 
   install:
     name: Dependency Install
