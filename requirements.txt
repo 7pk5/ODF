@@ -19,6 +19,6 @@ pillow
 keyboard
 
 # Core utilities
-numpy>=1.21.0,<2.0.0
+numpy>=1.26.0
 tqdm>=4.60.0
 requests>=2.25.0

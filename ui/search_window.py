@@ -183,6 +183,20 @@ class SearchWindow:
             command=self._browse_folder,
         ).pack(side="right")
 
+        ctk.CTkButton(
+            foot,
+            text="🗑  Clear Index",
+            font=("Segoe UI", 11),
+            fg_color="transparent",
+            hover_color="#4a1a1a",
+            text_color=DANGER,
+            border_width=1,
+            border_color=DANGER,
+            corner_radius=6,
+            height=26, width=110,
+            command=self._clear_index,
+        ).pack(side="right", padx=(0, 8))
+
     # ── Body: divider + list + detail ────────────────────────────
 
     def _make_body(self):
@@ -586,6 +600,23 @@ class SearchWindow:
             self.root.after(0, lambda: messagebox.showerror("Error", str(ex)))
         finally:
             self.root.after(0, lambda: self.progress.pack_forget())
+
+    def _clear_index(self):
+        count = self.vector_search.get_stats()["count"]
+        if count == 0:
+            messagebox.showinfo("Clear Index", "Index is already empty.")
+            return
+        if not messagebox.askyesno(
+            "Clear Index",
+            f"This will delete all {count} indexed chunks and cannot be undone.\n\nContinue?",
+        ):
+            return
+        try:
+            self.vector_search.clear()
+            self._hide_body()
+            self.status_lbl.configure(text="Index cleared")
+        except Exception as ex:
+            messagebox.showerror("Error", str(ex))
 
     def _check_empty_db(self):
         try:
