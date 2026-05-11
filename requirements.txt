@@ -16,7 +16,7 @@ customtkinter
 pillow
 
 # Global hotkey (Ctrl+K)
-keyboard
+pynput
 
 # Core utilities
 numpy>=1.21.0,<2.0.0

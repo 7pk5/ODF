@@ -2,8 +2,7 @@
 
 **"Search Like You Think"** – A Local-First, AI-Powered Document Search Engine.
 
-![UI Screenshot](https://via.placeholder.com/800x400?text=ODF+Ultra+Dark+UI+Overview)
-*(Note: Replace with actual screenshot of your new UI)*
+![ODF Screenshot](./Screenshot)
 
 ## 🚀 Problem Solved
 
