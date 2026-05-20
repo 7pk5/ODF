@@ -52,7 +52,6 @@ jobs:
             --windowed `
             --name ODF `
             --clean `
-            --icon ODF_Logo.ico `
             --add-data "models;models" `
             --collect-all chromadb `
             --collect-all fastembed `
