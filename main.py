@@ -19,13 +19,23 @@ def _setup_logging():
         log_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, 'odf.log')
+
+    # In windowed EXE mode sys.stdout/stderr are None.
+    # Redirect both to the log file so tqdm/fastembed/chromadb don't crash
+    # when they try to print download progress or status messages.
+    if getattr(sys, 'frozen', False) and sys.stdout is None:
+        _f = open(log_path, 'a', encoding='utf-8', buffering=1)
+        sys.stdout = _f
+        sys.stderr = _f
+
+    handlers = [logging.FileHandler(log_path, encoding='utf-8')]
+    if not getattr(sys, 'frozen', False):
+        handlers.append(logging.StreamHandler(sys.stdout))
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s %(message)s',
-        handlers=[
-            logging.FileHandler(log_path, encoding='utf-8'),
-            logging.StreamHandler(sys.stdout),
-        ],
+        handlers=handlers,
     )
     return log_path
 

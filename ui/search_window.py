@@ -652,9 +652,9 @@ class SearchWindow:
         self._check_empty_db()
 
     def _on_backend_error(self, msg):
+        log_path = os.path.join(os.environ.get('APPDATA', '%APPDATA%'), 'ODF', 'odf.log')
         self.status_lbl.configure(text="⚠  Model failed to load")
         messagebox.showerror(
             "Startup Error",
-            f"Could not load the AI model:\n\n{msg}\n\n"
-            "Log: %APPDATA%\\ODF\\odf.log",
+            f"Could not load the AI model:\n\n{msg}\n\nLog: {log_path}",
         )
