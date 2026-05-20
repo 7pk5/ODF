@@ -1,0 +1,97 @@
+name: Build Windows EXE
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Download AI model (bundle inside EXE)
+        run: |
+          python -c "
+          import os
+          from fastembed import TextEmbedding
+          models_dir = os.path.join(os.getcwd(), 'models')
+          os.makedirs(models_dir, exist_ok=True)
+          model = TextEmbedding(model_name='BAAI/bge-small-en-v1.5', cache_dir=models_dir)
+          list(model.embed(['test']))
+          print('Model downloaded and ready.')
+          "
+
+      - name: Build ODF.exe with PyInstaller
+        run: |
+          pyinstaller `
+            --noconfirm `
+            --onefile `
+            --windowed `
+            --name ODF `
+            --clean `
+            --icon ODF_Logo.ico `
+            --add-data "models;models" `
+            --collect-all chromadb `
+            --collect-all fastembed `
+            --collect-all onnxruntime `
+            --collect-all tokenizers `
+            --collect-all huggingface_hub `
+            --collect-all customtkinter `
+            --collect-all pdfminer `
+            --hidden-import fastembed `
+            --hidden-import fastembed.common `
+            --hidden-import fastembed.text `
+            --hidden-import fastembed.text.text_embedding `
+            --hidden-import pdfminer.high_level `
+            --hidden-import pdfminer.layout `
+            --hidden-import docx `
+            --hidden-import keyboard `
+            --hidden-import chromadb.migrations `
+            --hidden-import sqlite3 `
+            main.py
+
+      - name: Verify build output
+        run: |
+          if (Test-Path "dist\ODF.exe") {
+            $size = (Get-Item "dist\ODF.exe").Length / 1MB
+            Write-Host "BUILD SUCCESSFUL — dist\ODF.exe ($([math]::Round($size, 1)) MB)"
+          } else {
+            Write-Error "BUILD FAILED — dist\ODF.exe not found"
+            exit 1
+          }
+
+      - name: Upload ODF.exe as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ODF-Windows
+          path: dist/ODF.exe
+          retention-days: 30
+
+      - name: Upload ODF.exe to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ODF.exe
