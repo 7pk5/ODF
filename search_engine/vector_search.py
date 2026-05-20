@@ -264,6 +264,43 @@ class VectorSearch:
             print(f"Error getting IDs: {e}")
             return set()
 
+    def get_all_source_paths(self):
+        """Return set of all unique file paths currently stored in the index."""
+        try:
+            if self.collection.count() == 0:
+                return set()
+            result = self.collection.get(include=["metadatas"])
+            return {m["source"] for m in result["metadatas"] if m and "source" in m}
+        except Exception as e:
+            print(f"Error getting source paths: {e}")
+            return set()
+
+    def delete_by_source(self, file_path):
+        """Delete all chunks belonging to a specific file path."""
+        try:
+            result = self.collection.get(where={"source": {"$eq": file_path}}, include=[])
+            if result["ids"]:
+                self.collection.delete(ids=result["ids"])
+                return len(result["ids"])
+            return 0
+        except Exception as e:
+            print(f"Error deleting chunks for {file_path}: {e}")
+            return 0
+
+    def cleanup_deleted_files(self):
+        """Remove index entries for files that no longer exist on disk. Returns count of removed files."""
+        try:
+            sources = self.get_all_source_paths()
+            missing = [p for p in sources if not os.path.exists(p)]
+            for path in missing:
+                self.delete_by_source(path)
+            if missing:
+                print(f"Cleaned up {len(missing)} deleted file(s) from index.")
+            return len(missing)
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
+            return 0
+
     def clear(self):
         """Delete all documents in collection."""
         try:

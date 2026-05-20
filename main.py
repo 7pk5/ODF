@@ -1,59 +1,106 @@
 """
 Offline Document Finder (ODF)
 A smart AI-powered desktop tool for semantic search of local documents.
-
-Main entry point for the application.
 """
 
 import os
 import sys
-import threading
+import logging
+
+import keyboard
 from ui.search_window import SearchWindow
 
 
+def _setup_logging():
+    """Write logs to %APPDATA%/ODF/odf.log (or project root in script mode)."""
+    if getattr(sys, 'frozen', False):
+        log_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'ODF')
+    else:
+        log_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, 'odf.log')
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(message)s',
+        handlers=[
+            logging.FileHandler(log_path, encoding='utf-8'),
+            logging.StreamHandler(sys.stdout),
+        ],
+    )
+    return log_path
 
-import keyboard
+
+def _check_vcredist():
+    """On Windows, ONNX Runtime needs VCREDIST 2019+. Warn early if DLLs are missing."""
+    if sys.platform != "win32":
+        return
+    import ctypes
+    missing = [dll for dll in ("msvcp140.dll", "vcruntime140.dll")
+               if not ctypes.util.find_library(dll)]
+    if missing:
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            _r = tk.Tk()
+            _r.withdraw()
+            messagebox.showerror(
+                "Missing System Requirement",
+                "ODF requires the Microsoft Visual C++ Redistributable (2019 or later),\n"
+                "which is not installed on this PC.\n\n"
+                "Please download and install it from:\n"
+                "https://aka.ms/vs/17/release/vc_redist.x64.exe\n\n"
+                "After installing, restart ODF.",
+            )
+        except Exception:
+            pass
+        sys.exit(1)
+
 
 def main():
-    """Main entry point for the ODF application."""
-    print("Starting Offline Document Finder (ODF)...")
-    
-    # Create models directory if it doesn't exist
-    models_dir = os.path.join(os.path.dirname(__file__), 'models')
-    if not os.path.exists(models_dir):
-        os.makedirs(models_dir)
-    
-    # Initialize the search window
+    log_path = _setup_logging()
+    logging.info("ODF starting")
+    _check_vcredist()
+    try:
+        _run()
+    except Exception as exc:
+        logging.exception("Fatal error")
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            _r = tk.Tk()
+            _r.withdraw()
+            messagebox.showerror(
+                "ODF — Fatal Error",
+                f"ODF crashed unexpectedly.\n\nError: {exc}\n\nLog: {log_path}",
+            )
+        except Exception:
+            pass
+        sys.exit(1)
+
+
+def _run():
+    models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
+    os.makedirs(models_dir, exist_ok=True)
+
     search_window = SearchWindow()
-    
-    # Bind Global Hotkey
+
     try:
         keyboard.add_hotkey('ctrl+k', search_window.toggle_window)
-        print("✅ Global Hotkey Active: Press 'Ctrl + K' to toggle search")
+        logging.info("Global hotkey Ctrl+K registered")
     except Exception as e:
-        print(f"⚠️ Could not bind hotkey: {e}")
+        logging.warning("Could not bind hotkey: %s", e)
 
-    print("\n" + "="*60)
-    print("🔍 Offline Document Finder (ODF) is ready!")
-    print("="*60)
-    print("📂 How to use:")
-    print("   1. Press 'Ctrl + K' to toggle the search window")
-    print("   2. Add documents using the 'Index Folder' button")
-    print("   3. Search your documents with AI-powered semantic search")
-    print("\n💡 Tip: You can always restart by running: python main.py")
-    print("="*60)
-    
-    # Keep the main thread alive and show search window
     try:
-        # Show the search window initially
         search_window.show_window()
         search_window.root.mainloop()
     except KeyboardInterrupt:
-        print("\n👋 Shutting down ODF...")
+        logging.info("Shutting down")
         try:
             keyboard.unhook_all()
-        except: pass
+        except Exception:
+            pass
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

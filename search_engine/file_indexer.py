@@ -84,8 +84,6 @@ class FileIndexer:
                 
         print(f"Skipping {skipped_count} already indexed files. Processing {len(files_to_process)} new/modified files.")
 
-        print(f"Skipping {skipped_count} already indexed files. Processing {len(files_to_process)} new/modified files.")
-
         # Revert to ThreadPoolExecutor for Windows stability (ProcessPool requires strict entry point guards)
         with ThreadPoolExecutor(max_workers=min(8, os.cpu_count())) as executor:
             # Submit all tasks

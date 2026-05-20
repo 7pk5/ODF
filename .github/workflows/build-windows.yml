@@ -34,28 +34,15 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Download AI model (bundle it inside EXE)
-        run: |
-          python -c "
-          import os
-          from fastembed import TextEmbedding
-          models_dir = os.path.join(os.getcwd(), 'models')
-          os.makedirs(models_dir, exist_ok=True)
-          model = TextEmbedding(model_name='BAAI/bge-small-en-v1.5', cache_dir=models_dir)
-          list(model.embed(['test']))
-          print('Model downloaded and ready.')
-          "
-
-      - name: Build ODF.exe with PyInstaller
+      - name: Build ODF with PyInstaller
         run: |
           pyinstaller `
             --noconfirm `
-            --onefile `
+            --onedir `
             --windowed `
             --name ODF `
             --clean `
             --icon ODF_Logo.ico `
-            --add-data "models;models" `
             --collect-all chromadb `
             --collect-all fastembed `
             --collect-all onnxruntime `
@@ -73,27 +60,39 @@ jobs:
             --hidden-import keyboard `
             --hidden-import chromadb.migrations `
             --hidden-import sqlite3 `
+            --exclude-module matplotlib `
+            --exclude-module scipy `
+            --exclude-module PyQt5 `
+            --exclude-module PyQt6 `
+            --exclude-module wx `
+            --exclude-module IPython `
+            --exclude-module notebook `
+            --exclude-module pytest `
+            --exclude-module unittest `
             main.py
 
       - name: Verify build output
         run: |
-          if (Test-Path "dist\ODF.exe") {
-            $size = (Get-Item "dist\ODF.exe").Length / 1MB
-            Write-Host "BUILD SUCCESSFUL — dist\ODF.exe ($([math]::Round($size, 1)) MB)"
+          if (Test-Path "dist\ODF\ODF.exe") {
+            $size = (Get-ChildItem -Recurse "dist\ODF" | Measure-Object -Property Length -Sum).Sum / 1MB
+            Write-Host "BUILD SUCCESSFUL — dist\ODF\ ($([math]::Round($size, 1)) MB total)"
           } else {
-            Write-Error "BUILD FAILED — dist\ODF.exe not found"
+            Write-Error "BUILD FAILED — dist\ODF\ODF.exe not found"
             exit 1
           }
 
-      - name: Upload ODF.exe as artifact
+      - name: Zip ODF folder for distribution
+        run: Compress-Archive -Path dist\ODF\* -DestinationPath dist\ODF-Windows.zip
+
+      - name: Upload ODF-Windows.zip as artifact
         uses: actions/upload-artifact@v4
         with:
           name: ODF-Windows
-          path: dist/ODF.exe
+          path: dist/ODF-Windows.zip
           retention-days: 30
 
-      - name: Upload ODF.exe to GitHub Release
+      - name: Upload ODF-Windows.zip to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/ODF.exe
+          files: dist/ODF-Windows.zip

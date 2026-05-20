@@ -44,31 +44,11 @@ def build_exe():
         print("Installing FastEmbed...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "fastembed"])
 
-    # ── 3. Pre-download the AI model to the local 'models' folder ─
-    #       This gets bundled inside the EXE so users need no internet.
-    models_dir = os.path.abspath("models")
-    if not os.path.exists(models_dir):
-        os.makedirs(models_dir)
-
-    print("\nChecking / downloading AI model (BAAI/bge-small-en-v1.5)...")
-    download_script = f"""
-import os
-from fastembed import TextEmbedding
-models_dir = r"{models_dir}"
-print(f"Saving model to: {{models_dir}}")
-model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5", cache_dir=models_dir)
-# Run one embed to confirm the model loaded
-list(model.embed(["test"]))
-print("Model ready.")
-"""
-    tmp_script = "_download_model_tmp.py"
-    with open(tmp_script, "w") as f:
-        f.write(download_script)
-    try:
-        subprocess.check_call([sys.executable, tmp_script])
-    finally:
-        if os.path.exists(tmp_script):
-            os.remove(tmp_script)
+    # ── 3. (Model is downloaded on first launch by the end user) ──
+    #       The AI model is NOT bundled in the EXE — this keeps the
+    #       distribution small (~70 MB vs ~200 MB). On first launch,
+    #       FastEmbed downloads the model (~130 MB) once to
+    #       %APPDATA%\ODF\models\ and reuses it on every subsequent run.
 
     # ── 4. Resolve icon path (optional) ──────────────────────────
     icon_args = []
@@ -88,20 +68,17 @@ print("Model ready.")
     cmd = [
         "pyinstaller",
         "--noconfirm",
-        "--onefile",           # Single .exe — double-click and run
+        "--onedir",            # Folder distribution — no extraction on every launch
         "--windowed",          # No console window
         "--name", "ODF",
         "--clean",
-
-        # Bundle the AI model inside the EXE (users need no internet)
-        "--add-data", f"{models_dir}{os.pathsep}models",
 
         # Collect all files for packages that use dynamic loading
         "--collect-all", "chromadb",
         "--collect-all", "fastembed",
         "--collect-all", "onnxruntime",
-        "--collect-all", "tokenizers",       # fastembed internal dependency
-        "--collect-all", "huggingface_hub",  # fastembed internal dependency
+        "--collect-all", "tokenizers",
+        "--collect-all", "huggingface_hub",
         "--collect-all", "customtkinter",
         "--collect-all", "pdfminer",
 
@@ -117,6 +94,17 @@ print("Model ready.")
         "--hidden-import", "chromadb.migrations",
         "--hidden-import", "sqlite3",
 
+        # Exclude heavy packages that are not used
+        "--exclude-module", "matplotlib",
+        "--exclude-module", "scipy",
+        "--exclude-module", "PyQt5",
+        "--exclude-module", "PyQt6",
+        "--exclude-module", "wx",
+        "--exclude-module", "IPython",
+        "--exclude-module", "notebook",
+        "--exclude-module", "pytest",
+        "--exclude-module", "unittest",
+
         # Entry point
         "main.py",
     ] + icon_args
@@ -127,19 +115,25 @@ print("Model ready.")
     subprocess.check_call(cmd)
 
     # ── 6. Done ───────────────────────────────────────────────────
-    exe_path = os.path.join("dist", "ODF.exe")
+    exe_path = os.path.join("dist", "ODF", "ODF.exe")
+    folder_path = os.path.join("dist", "ODF")
     if os.path.exists(exe_path):
-        size_mb = os.path.getsize(exe_path) / (1024 * 1024)
+        folder_mb = sum(
+            os.path.getsize(os.path.join(dp, f))
+            for dp, _, filenames in os.walk(folder_path)
+            for f in filenames
+        ) / (1024 * 1024)
         print(f"\n{'=' * 60}")
         print(f"  BUILD SUCCESSFUL")
-        print(f"  File : dist/ODF.exe")
-        print(f"  Size : {size_mb:.1f} MB")
+        print(f"  Folder : dist/ODF/")
+        print(f"  EXE    : dist/ODF/ODF.exe")
+        print(f"  Size   : {folder_mb:.1f} MB (total folder)")
         print(f"{'=' * 60}")
         print("\nHow to share:")
-        print("  1. Send 'dist/ODF.exe' to anyone")
-        print("  2. They double-click it — no Python or setup needed")
-        print("  NOTE: First launch takes ~20-30 sec (one-time extraction).")
-        print("        Subsequent launches are faster.")
+        print("  1. Zip the entire 'dist/ODF/' folder")
+        print("  2. Send the zip — recipients unzip and double-click ODF.exe")
+        print("  3. First launch downloads the AI model once (~130 MB).")
+        print("     Every launch after that is instant, no internet needed.")
     else:
         print("\nBuild may have failed — check output above.")
 

@@ -42,13 +42,14 @@ class SearchWindow:
     MAX_H         = BAR_H + FOOTER_H + MAX_ROWS * ROW_H + 2  # max window height
 
     def __init__(self):
-        self.root         = None
-        self.vector_search = VectorSearch()
-        self.file_indexer  = FileIndexer()
+        self.root          = None
+        self.vector_search = None
+        self.file_indexer  = None
+        self._ready        = False
         self.results       = []
         self.selected_idx  = -1
         self.search_timer  = None
-        self._win_h       = self.IDLE_H   # track window height manually
+        self._win_h        = self.IDLE_H
 
     # ── Window lifecycle ─────────────────────────────────────────
 
@@ -71,7 +72,8 @@ class SearchWindow:
         self.root.lift()
         self.root.focus_force()
         self.search_entry.focus_set()
-        self.root.after(350, self._check_empty_db)
+        if self._ready:
+            self.root.after(350, self._check_empty_db)
 
     def _build(self):
         self.root = ctk.CTk()
@@ -98,7 +100,7 @@ class SearchWindow:
 
         self._bind_keys()
         self._bind_drag()
-        self.root.after(350, self._check_empty_db)
+        self.root.after(50, self._start_backend_init)
 
     def _center(self):
         sw = self.root.winfo_screenwidth()
@@ -171,7 +173,7 @@ class SearchWindow:
         )
         self.progress.set(0)
 
-        ctk.CTkButton(
+        self.index_btn = ctk.CTkButton(
             foot,
             text="＋  Index Folder",
             font=("Segoe UI", 11),
@@ -180,8 +182,10 @@ class SearchWindow:
             text_color=TEXT_1,
             corner_radius=6,
             height=26, width=130,
+            state="disabled",
             command=self._browse_folder,
-        ).pack(side="right")
+        )
+        self.index_btn.pack(side="right")
 
     # ── Body: divider + list + detail ────────────────────────────
 
@@ -324,6 +328,8 @@ class SearchWindow:
     # ── Typing / debounce ────────────────────────────────────────
 
     def _on_type(self, *_):
+        if not self._ready:
+            return
         q = self.query.get().strip()
         if self.search_timer:
             self.root.after_cancel(self.search_timer)
@@ -522,6 +528,8 @@ class SearchWindow:
     # ── Indexing ─────────────────────────────────────────────────
 
     def _browse_folder(self):
+        if not self._ready:
+            return
         folder = filedialog.askdirectory()
         if not folder:
             return
@@ -545,6 +553,14 @@ class SearchWindow:
 
     def _index_thread(self, folder):
         try:
+            removed = self.vector_search.cleanup_deleted_files()
+            if removed > 0:
+                self.root.after(
+                    0, lambda r=removed: self.status_lbl.configure(
+                        text=f"Removed {r} deleted file{'s' if r > 1 else ''} from index"
+                    )
+                )
+
             files = self.file_indexer.scan_directory(folder)
             if not files:
                 self.root.after(
@@ -588,6 +604,8 @@ class SearchWindow:
             self.root.after(0, lambda: self.progress.pack_forget())
 
     def _check_empty_db(self):
+        if not self._ready:
+            return
         try:
             if self.vector_search.get_stats()["count"] == 0:
                 if messagebox.askyesno(
@@ -597,3 +615,46 @@ class SearchWindow:
                     self._browse_folder()
         except Exception:
             pass
+
+    # ── Backend lazy init ─────────────────────────────────────────
+
+    def _start_backend_init(self):
+        import sys, os
+        if getattr(sys, 'frozen', False):
+            model_dir = os.path.join(os.environ.get('APPDATA', ''), 'ODF', 'models')
+        else:
+            model_dir = os.path.join(os.path.dirname(__file__), '..', 'models')
+        # If model cache is empty this is a first-run download (~130 MB, one time only)
+        has_model = os.path.isdir(model_dir) and any(os.scandir(model_dir))
+        msg = "Loading AI model…" if has_model else "Downloading AI model (~130 MB, one-time)…"
+        self.status_lbl.configure(text=msg)
+        threading.Thread(target=self._init_backend, daemon=True).start()
+
+    def _init_backend(self):
+        try:
+            vs = VectorSearch()
+            fi = FileIndexer()
+            self.vector_search = vs
+            self.file_indexer  = fi
+            self._ready        = True
+            self.root.after(0, self._on_backend_ready)
+        except Exception as exc:
+            import logging
+            logging.exception("Backend init failed")
+            self.root.after(0, lambda e=str(exc): self._on_backend_error(e))
+
+    def _on_backend_ready(self):
+        self.index_btn.configure(state="normal")
+        n = self.vector_search.get_stats()["count"]
+        self.status_lbl.configure(
+            text=f"{n} chunks indexed" if n else "Ready  ·  index a folder to start"
+        )
+        self._check_empty_db()
+
+    def _on_backend_error(self, msg):
+        self.status_lbl.configure(text="⚠  Model failed to load")
+        messagebox.showerror(
+            "Startup Error",
+            f"Could not load the AI model:\n\n{msg}\n\n"
+            "Log: %APPDATA%\\ODF\\odf.log",
+        )

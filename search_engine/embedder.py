@@ -19,33 +19,26 @@ class Embedder:
         self.model_name = model_name
         try:
             print(f"Loading embedding model: {model_name}")
-            
-            # Determine cache directory for models
+
             import sys
             import os
-            
+
+            # Always cache the model in %APPDATA%/ODF/models (EXE) or project/models (script).
+            # This means the model is downloaded once on first launch and reused forever —
+            # it does NOT need to be bundled inside the EXE, keeping distribution small.
             if getattr(sys, 'frozen', False):
-                # If running as .exe, look in the internal temp folder (_MEIPASS)
-                # We will tell PyInstaller to put 'models' folder there.
-                base_dir = sys._MEIPASS
+                model_cache_dir = os.path.join(
+                    os.environ.get('APPDATA', os.path.expanduser('~')), 'ODF', 'models'
+                )
             else:
-                # If running as script, assume 'models' folder is in project root
-                base_dir = os.path.join(os.path.dirname(__file__), '..')
-            
-            model_cache_dir = os.path.join(base_dir, 'models')
-            
-            # Create models dir if not exists (for script mode)
-            if not os.path.exists(model_cache_dir) and not getattr(sys, 'frozen', False):
-                os.makedirs(model_cache_dir)
-            
-            # When running as EXE the model is bundled inside — use local only.
-            # When running as a script it may need to download on first use.
-            is_frozen = getattr(sys, 'frozen', False)
+                model_cache_dir = os.path.join(os.path.dirname(__file__), '..', 'models')
+
+            os.makedirs(model_cache_dir, exist_ok=True)
+
             self.model = TextEmbedding(
                 model_name=model_name,
                 threads=None,
                 cache_dir=model_cache_dir,
-                local_files_only=is_frozen,
             )
             print(f"Model '{model_name}' loaded successfully!")
         except Exception as e:
