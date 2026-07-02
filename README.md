@@ -68,31 +68,55 @@ Everything — text extraction, embedding, storage, retrieval — runs **on your
 ODF is a three-layer desktop application. The UI layer never talks to storage directly — all retrieval flows through the engine layer.
 
 ```mermaid
+%%{init: {
+  'theme': 'base',
+    'themeCSS': '.node rect, .node circle, .node polygon, .node path { filter: drop-shadow(2px 4px 5px rgba(0,0,0,0.55)); } .cluster rect { filter: drop-shadow(3px 6px 8px rgba(0,0,0,0.45)); } .cluster-label span { color: #e6edf3; font-weight: 600; } .edgeLabel span { color: #adbac7; }',
+  'flowchart': { 'curve': 'basis', 'nodeSpacing': 50, 'rankSpacing': 60 },
+  'themeVariables': {
+    'fontFamily': 'Segoe UI, Helvetica, Arial, sans-serif',
+    'fontSize': '13px',
+    'lineColor': '#7d8590',
+    'textColor': '#adbac7',
+    'edgeLabelBackground': '#161b22',
+    'clusterBorder': '#30363d'
+  }
+}}%%
 flowchart TB
-    subgraph UI["Presentation Layer  ·  ui/"]
-        HK["Global Hotkey<br/>(Ctrl+K, keyboard lib)"]
-        SW["SearchWindow<br/>(CustomTkinter overlay)"]
+    subgraph UI["&nbsp;🖥️ Presentation Layer · ui/&nbsp;"]
+        HK(["⌨️ Global Hotkey<br/>Ctrl+K · keyboard lib"])
+        SW("🔍 SearchWindow<br/>CustomTkinter overlay")
     end
 
-    subgraph ENGINE["Engine Layer  ·  search_engine/"]
-        FI["FileIndexer<br/>scan · extract · fingerprint"]
-        VS["VectorSearch<br/>chunk · retrieve · rank"]
-        EMB["Embedder<br/>FastEmbed / ONNX Runtime<br/>BAAI bge-small-en-v1.5"]
+    subgraph ENGINE["&nbsp;⚙️ Engine Layer · search_engine/&nbsp;"]
+        FI("📂 FileIndexer<br/>scan · extract · fingerprint")
+        VS("🧭 VectorSearch<br/>chunk · retrieve · rank")
+        EMB("🧠 Embedder<br/>FastEmbed · ONNX · CPU<br/>bge-small-en-v1.5")
     end
 
-    subgraph STORAGE["Storage Layer  ·  local disk"]
-        DB[("ChromaDB<br/>HNSW · cosine")]
-        FS[("File System<br/>PDF / DOCX")]
+    subgraph STORAGE["&nbsp;💾 Storage Layer · local disk&nbsp;"]
+        DB[("🗄️ ChromaDB<br/>HNSW · cosine")]
+        FS[("📄 File System<br/>PDF / DOCX")]
     end
 
     HK -->|toggle| SW
-    SW -->|"index folder"| FI
-    SW -->|"search query"| VS
-    FI -->|"read files"| FS
-    FI -->|"documents + metadata"| VS
-    VS <-->|"embed text"| EMB
-    VS <-->|"upsert / query vectors"| DB
-    SW -->|"open result"| FS
+    SW -->|index folder| FI
+    SW -->|search query| VS
+    FI -->|read files| FS
+    FI -->|documents + metadata| VS
+    VS <-->|embed text| EMB
+    VS <-->|upsert / query| DB
+    SW -.->|open result| FS
+
+    classDef uiNode fill:#0d2b52,stroke:#58a6ff,stroke-width:1.5px,color:#f0f6fc
+    classDef engineNode fill:#2a1e45,stroke:#bc8cff,stroke-width:1.5px,color:#f0f6fc
+    classDef storeNode fill:#0c2f21,stroke:#3fb950,stroke-width:1.5px,color:#f0f6fc
+    class HK,SW uiNode
+    class FI,VS,EMB engineNode
+    class DB,FS storeNode
+
+    style UI fill:#0d1420,stroke:#30363d,stroke-width:1px
+    style ENGINE fill:#131020,stroke:#30363d,stroke-width:1px
+    style STORAGE fill:#0c1512,stroke:#30363d,stroke-width:1px
 ```
 
 **Design principles**
@@ -108,16 +132,39 @@ flowchart TB
 Triggered from the UI (*"＋ Index Folder"*). Run it once per folder; subsequent runs only process new or modified files.
 
 ```mermaid
+%%{init: {
+  'theme': 'base',
+    'themeCSS': '.node rect, .node circle, .node polygon, .node path { filter: drop-shadow(2px 4px 5px rgba(0,0,0,0.55)); } .cluster rect { filter: drop-shadow(3px 6px 8px rgba(0,0,0,0.45)); } .cluster-label span { color: #e6edf3; font-weight: 600; } .edgeLabel span { color: #adbac7; }',
+  'flowchart': { 'curve': 'basis', 'nodeSpacing': 40, 'rankSpacing': 50 },
+  'themeVariables': {
+    'fontFamily': 'Segoe UI, Helvetica, Arial, sans-serif',
+    'fontSize': '13px',
+    'lineColor': '#7d8590',
+    'textColor': '#adbac7',
+    'edgeLabelBackground': '#161b22'
+  }
+}}%%
 flowchart LR
-    A["Scan folder<br/>recursively"] --> B{"Supported?<br/>.pdf / .docx"}
-    B -- no --> X["skip"]
-    B -- yes --> C{"Fingerprint<br/>MD5(path + mtime)<br/>already indexed?"}
+    A("📁 Scan folder<br/>recursively") --> B{"supported?<br/>.pdf / .docx"}
+    B -- no --> X("⏭️ skip")
+    B -- yes --> C{"fingerprint<br/>MD5(path + mtime)<br/>already indexed?"}
     C -- yes --> X
-    C -- no --> D["Extract text<br/>pdfminer.six / python-docx<br/>(≤ 8 threads)"]
-    D --> E["Clean & cap<br/>100k chars"]
-    E --> F["Chunk<br/>~1000 chars,<br/>100 overlap"]
-    F --> G["Embed chunks<br/>bge-small-en-v1.5<br/>ONNX · CPU"]
-    G --> H[("Upsert to ChromaDB<br/>vectors + text + metadata")]
+    C -- no --> D("📖 Extract text<br/>pdfminer.six / python-docx<br/>≤ 8 threads")
+    D --> E("🧹 Clean &amp; cap<br/>100k chars")
+    E --> F("✂️ Chunk<br/>~1000 chars · 100 overlap")
+    F --> G("🧠 Embed chunks<br/>bge-small-en-v1.5<br/>ONNX · CPU")
+    G --> H[("🗄️ ChromaDB<br/>vectors + text + metadata")]
+
+    classDef step fill:#0d2b52,stroke:#58a6ff,stroke-width:1.5px,color:#f0f6fc
+    classDef decision fill:#3b2300,stroke:#d29922,stroke-width:1.5px,color:#f0f6fc
+    classDef skip fill:#21262d,stroke:#484f58,stroke-width:1px,color:#8b949e
+    classDef ai fill:#2a1e45,stroke:#bc8cff,stroke-width:1.5px,color:#f0f6fc
+    classDef store fill:#0c2f21,stroke:#3fb950,stroke-width:1.5px,color:#f0f6fc
+    class A,D,E,F step
+    class B,C decision
+    class X skip
+    class G ai
+    class H store
 ```
 
 | Stage | Detail |
@@ -133,14 +180,37 @@ flowchart LR
 Runs on every keystroke, debounced by 280 ms, minimum 2 characters.
 
 ```mermaid
+%%{init: {
+  'theme': 'base',
+    'themeCSS': '.node rect, .node circle, .node polygon, .node path { filter: drop-shadow(2px 4px 5px rgba(0,0,0,0.55)); } .cluster rect { filter: drop-shadow(3px 6px 8px rgba(0,0,0,0.45)); } .cluster-label span { color: #e6edf3; font-weight: 600; } .edgeLabel span { color: #adbac7; }',
+  'flowchart': { 'curve': 'basis', 'nodeSpacing': 40, 'rankSpacing': 50 },
+  'themeVariables': {
+    'fontFamily': 'Segoe UI, Helvetica, Arial, sans-serif',
+    'fontSize': '13px',
+    'lineColor': '#7d8590',
+    'textColor': '#adbac7',
+    'edgeLabelBackground': '#161b22'
+  }
+}}%%
 flowchart LR
-    Q["User query"] --> D["Debounce 280 ms"]
-    D --> E["Embed query<br/>384-dim vector"]
-    E --> R["ChromaDB ANN search<br/>top 24 candidates<br/>(3× over-fetch)"]
-    R --> B["Keyword boosting<br/>+0.25 filename match<br/>+0.15 content match"]
-    B --> S["Re-rank by<br/>final score"]
-    S --> T["Top 8 results<br/>rendered in overlay"]
-    T --> O["Enter / click →<br/>open in default app"]
+    Q("⌨️ User query") --> D("⏱️ Debounce<br/>280 ms")
+    D --> E("🧠 Embed query<br/>384-dim vector")
+    E --> R[("🗄️ ANN search<br/>top 24 candidates<br/>3× over-fetch")]
+    R --> B("⚡ Keyword boost<br/>+0.25 filename<br/>+0.15 content")
+    B --> S("🏆 Re-rank by<br/>final score")
+    S --> T("📋 Top 8 results<br/>in overlay")
+    T --> O("📄 Enter / click →<br/>open in default app")
+
+    classDef input fill:#0d2b52,stroke:#58a6ff,stroke-width:1.5px,color:#f0f6fc
+    classDef ai fill:#2a1e45,stroke:#bc8cff,stroke-width:1.5px,color:#f0f6fc
+    classDef store fill:#0c2f21,stroke:#3fb950,stroke-width:1.5px,color:#f0f6fc
+    classDef boost fill:#3b2300,stroke:#d29922,stroke-width:1.5px,color:#f0f6fc
+    classDef result fill:#0d3321,stroke:#56d364,stroke-width:1.5px,color:#f0f6fc
+    class Q,D input
+    class E ai
+    class R store
+    class B,S boost
+    class T,O result
 ```
 
 1. **Retrieve** — the query vector is compared against all chunk vectors via HNSW approximate nearest-neighbour search; 24 candidates are fetched (3× the display count) to give the ranking stage room to work.
