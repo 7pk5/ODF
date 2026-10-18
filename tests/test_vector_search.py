@@ -78,9 +78,6 @@ def test_delete_by_source_removes_all_chunks_of_a_file(vector_search, tmp_path):
     assert chunk_ids_for(vector_search, long_doc) == []
 
 
-# ── Known bugs (Phase 0). Remove the xfail marker when fixed. ──────
-
-@pytest.mark.xfail(strict=True, reason="B1: re-indexing a modified file leaves its old chunks in the index")
 def test_modified_file_replaces_old_chunks(vector_search, tmp_path):
     path = tmp_path / "notes.docx"
     make_docx(path, paragraphs=["Old content about zebras."])
@@ -93,6 +90,40 @@ def test_modified_file_replaces_old_chunks(vector_search, tmp_path):
     stored = vector_search.collection.get(where={"source": str(path)}, include=["documents"])
     assert not any("zebras" in d for d in stored["documents"])
 
+
+def test_remove_stale_versions_repairs_indexes_built_before_the_fix(vector_search, tmp_path):
+    # Simulate a v1.2 index: two versions of notes.docx stored side by side
+    path = str(tmp_path / "notes.docx")
+    def chunk(version_id, mtime, text):
+        meta = {"source": path, "filename": "notes.docx", "modified": mtime,
+                "size": 1, "type": ".docx", "chunk_index": 0}
+        vector_search._process_batch([f"{version_id}_chunk_0"], [text], [meta])
+    chunk("old", 100.0, "Old content about zebras.")
+    chunk("new", 200.0, "New content about giraffes.")
+    other = make_docx(tmp_path / "other.docx", paragraphs=["Unrelated file"])
+    index(vector_search, [other])
+
+    assert vector_search.remove_stale_versions() == 1
+    stored = vector_search.collection.get(where={"source": path}, include=["documents"])
+    assert stored["ids"] == ["new_chunk_0"]
+    assert vector_search.get_all_source_paths() == {path, other}
+    assert vector_search.remove_stale_versions() == 0
+
+
+def test_remove_stale_versions_deletes_in_batches(vector_search, tmp_path, monkeypatch):
+    path = str(tmp_path / "big.docx")
+    meta = lambda mtime, i: {"source": path, "filename": "big.docx", "modified": mtime,
+                             "size": 1, "type": ".docx", "chunk_index": i}
+    vector_search._process_batch([f"old_chunk_{i}" for i in range(7)],
+                                 [f"old text {i}" for i in range(7)], [meta(1.0, i) for i in range(7)])
+    vector_search._process_batch(["new_chunk_0"], ["new text"], [meta(2.0, 0)])
+    monkeypatch.setattr(vector_search.client, "get_max_batch_size", lambda: 3)
+
+    assert vector_search.remove_stale_versions() == 1
+    assert vector_search.collection.get(include=[])["ids"] == ["new_chunk_0"]
+
+
+# ── Known bugs (Phase 0). Remove the xfail marker when fixed. ──────
 
 @pytest.mark.xfail(strict=True, reason="B3: results are per chunk, so one long file can fill every slot")
 def test_results_are_one_per_file(vector_search, tmp_path):

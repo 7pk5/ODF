@@ -84,7 +84,11 @@ class VectorSearch:
             content = doc['content']
             base_id = doc['id']
             metadata = doc['metadata']
-            
+
+            # A modified file gets new chunk IDs (path+mtime), so drop the
+            # previous version's chunks first or search returns stale text
+            self.delete_by_source(metadata['source'])
+
             # Split content into chunks
             chunks = self._recursive_text_split(content)
             
@@ -284,6 +288,41 @@ class VectorSearch:
             return len(missing)
         except Exception as e:
             print(f"Error during cleanup: {e}")
+            return 0
+
+    def remove_stale_versions(self):
+        """
+        Delete chunks from superseded versions of a file, keeping only the newest
+        (by stored mtime). Repairs indexes built before re-indexing replaced old
+        chunks. Returns count of files cleaned.
+        """
+        try:
+            if self.collection.count() == 0:
+                return 0
+            result = self.collection.get(include=["metadatas"])
+
+            # source -> {modified -> [chunk ids]}
+            versions = {}
+            for chunk_id, m in zip(result["ids"], result["metadatas"]):
+                if m and "source" in m:
+                    versions.setdefault(m["source"], {}).setdefault(m.get("modified", 0), []).append(chunk_id)
+
+            stale_ids = []
+            cleaned = 0
+            for by_mtime in versions.values():
+                if len(by_mtime) > 1:
+                    newest = max(by_mtime)
+                    stale_ids += [cid for mtime, ids in by_mtime.items() if mtime != newest for cid in ids]
+                    cleaned += 1
+
+            if stale_ids:
+                step = self.client.get_max_batch_size()
+                for i in range(0, len(stale_ids), step):
+                    self.collection.delete(ids=stale_ids[i:i + step])
+                print(f"Removed stale versions of {cleaned} file(s) from index.")
+            return cleaned
+        except Exception as e:
+            print(f"Error removing stale versions: {e}")
             return 0
 
     def clear(self):

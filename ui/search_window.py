@@ -561,6 +561,7 @@ class SearchWindow:
                         text=f"Removed {r} deleted file{'s' if r > 1 else ''} from index"
                     )
                 )
+            self.vector_search.remove_stale_versions()
 
             files = self.file_indexer.scan_directory(folder)
             if not files:
