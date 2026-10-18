@@ -7,6 +7,8 @@ import re
 import numpy as np
 from docx import Document
 
+from odf.index import file_indexer
+
 
 class FakeEmbedder:
     """Deterministic bag-of-words embedder (384-dim, L2-normalised)."""
@@ -78,3 +80,8 @@ def bump_mtime(path, seconds=10):
     """Make a file look modified without depending on filesystem timestamp resolution."""
     st = os.stat(path)
     os.utime(path, (st.st_atime, st.st_mtime + seconds))
+
+
+def index(store, paths):
+    """Run the same index pipeline the UI uses (_index_thread)."""
+    store.add_documents(file_indexer.process_files(paths, existing_ids=store.get_all_ids()))

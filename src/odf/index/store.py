@@ -1,19 +1,22 @@
 """
-Vector Search Engine
-Handles ChromaDB-based similarity search for document retrieval.
+Vector Store
+ChromaDB-backed storage of document chunks and their embeddings.
 """
 
 import chromadb
 from chromadb.config import Settings
 import os
 from odf import paths
-from odf.index.embedder import Embedder
+from odf.index.chunking import split_text
 
-class VectorSearch:
-    def __init__(self):
-        """Initialize the vector search engine with ChromaDB."""
-        self.embedder = Embedder()
-        
+COLLECTION_NAME = "documents"
+
+
+class VectorStore:
+    def __init__(self, embedder):
+        """Open (or create) the persistent ChromaDB index; `embedder` embeds chunks on add."""
+        self.embedder = embedder
+
         # Initialize ChromaDB persistent client in the OS user-data dir (EXE)
         # or project root (script), so it always has write permission
         self.db_path = paths.chroma_db_dir()
@@ -24,52 +27,15 @@ class VectorSearch:
             path=self.db_path,
             settings=Settings(anonymized_telemetry=False),
         )
-        
+
         # Get or create collection
         self.collection = self.client.get_or_create_collection(
-            name="documents",
+            name=COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"} # Use cosine similarity
         )
-        
-        print(f"VectorSearch initialized with ChromaDB at {self.db_path}")
 
-    def _recursive_text_split(self, text, chunk_size=1000, chunk_overlap=100):
-        """
-        Split text into chunks recursively (similar to LangChain).
-        Simple implementation: split by paragraphs, then sentences, then chars.
-        """
-        if not text:
-            return []
-            
-        chunks = []
-        start = 0
-        text_len = len(text)
-        
-        while start < text_len:
-            end = start + chunk_size
-            if end >= text_len:
-                chunks.append(text[start:])
-                break
-                
-            # Try to find a good breaking point (newline, period, space)
-            # Look back from 'end' to find a separator
-            break_point = -1
-            for sep in ['\n\n', '\n', '. ', ' ']:
-                idx = text.rfind(sep, start, end)
-                if idx != -1 and idx > start + (chunk_size // 2): # Ensure we don't split too early
-                    break_point = idx + len(sep)
-                    break
-            
-            if break_point != -1:
-                chunks.append(text[start:break_point])
-                start = break_point - chunk_overlap # Overlap
-            else:
-                # Force split
-                chunks.append(text[start:end])
-                start = end - chunk_overlap
-                
-        return chunks
-    
+        print(f"VectorStore initialized with ChromaDB at {self.db_path}")
+
     def add_documents(self, documents_generator, batch_size=100, progress_callback=None):
         """
         Add documents to the ChromaDB collection in batches.
@@ -95,7 +61,7 @@ class VectorSearch:
             self.delete_by_source(metadata['source'])
 
             # Split content into chunks
-            chunks = self._recursive_text_split(content)
+            chunks = split_text(content)
             
             for i, chunk in enumerate(chunks):
                 chunk_id = f"{base_id}_chunk_{i}"
@@ -142,94 +108,39 @@ class VectorSearch:
         except Exception as e:
             print(f"Error processing batch: {e}")
 
-    def search(self, query, top_k=10, filter_metadata=None):
+    def count(self):
+        """Number of chunks in the index."""
+        return self.collection.count()
+
+    def query(self, query_embedding, n_results, where=None):
         """
-        Search for documents similar to the query.
-        Implements Hybrid Search: Semantic Vector Search + Exact Keyword Boosting.
+        Nearest chunks to `query_embedding`, closest first, as dicts with
+        id, distance (cosine, 0-2), document (chunk text) and metadata.
         """
-        try:
-            if self.collection.count() == 0:
-                return []
-                
-            query_embedding = self.embedder.embed_text(query)
-            
-            # Hybrid Search Strategy:
-            # 1. Fetch more candidates (3x) from vector search to cast a wider net
-            # 2. Check for exact keyword matches in these candidates
-            # 3. Apply boosting for exact matches
-            # 4. Re-rank and return top_k
-            
-            candidate_k = top_k * 3
-            
-            results = self.collection.query(
-                query_embeddings=[query_embedding.tolist()],
-                n_results=candidate_k,
-                where=filter_metadata
-            )
-            
-            if not results['ids']:
-                return []
-                
-            # Unpack results
-            ids = results['ids'][0]
-            distances = results['distances'][0]
-            metadatas = results['metadatas'][0]
-            documents = results['documents'][0]
-            
-            candidates = []
-            query_lower = query.lower().strip()
-            
-            for i in range(len(ids)):
-                # Base Semantic Score
-                # Cosine distance is 0 to 2. Similarity = 1 - (distance / 2) roughly
-                base_score = 1 - (distances[i])
-                final_score = base_score
-                
-                content_text = documents[i] or ""
-                metadata = metadatas[i] or {}
-                filename = metadata.get('filename', '').lower()
-                
-                # --- HYBRID BOOSTING LOGIC ---
-                boost_applied = False
-                
-                # 1. Title Match Boost (Very High)
-                if query_lower in filename:
-                    final_score += 0.25
-                    boost_applied = True
-                    
-                # 2. Exact Content Match Boost (Moderate)
-                if query_lower in content_text.lower():
-                    final_score += 0.15
-                    boost_applied = True
-                
-                # Ensure we don't exceed 1.0 (optional, but good for consistent UI%)
-                final_score = min(1.0, final_score)
-                
-                candidates.append({
-                    'id': ids[i],
-                    'similarity': max(0.0, float(final_score)),
-                    'base_score': base_score, # Debugging
-                    'boosted': boost_applied,
-                    'content': content_text,
-                    'metadata': metadata,
-                    'file_path': metadata.get('source'),
-                    'filename': metadata.get('filename', 'Unknown'),
-                })
-                
-            # Re-rank based on final_score
-            candidates.sort(key=lambda x: x['similarity'], reverse=True)
-            
-            # Return top_k
-            return candidates[:top_k]
-            
-        except Exception as e:
-            print(f"Search error: {e}")
+        results = self.collection.query(
+            query_embeddings=[query_embedding.tolist()],
+            n_results=n_results,
+            where=where
+        )
+        if not results['ids']:
             return []
-            
+        return [
+            {
+                'id': chunk_id,
+                'distance': distance,
+                'document': document or "",
+                'metadata': metadata or {},
+            }
+            for chunk_id, distance, document, metadata in zip(
+                results['ids'][0], results['distances'][0],
+                results['documents'][0], results['metadatas'][0],
+            )
+        ]
+
     def get_stats(self):
         """Get database statistics."""
         return {
-            "count": self.collection.count(),
+            "count": self.count(),
             "path": self.db_path
         }
     
@@ -333,8 +244,8 @@ class VectorSearch:
     def clear(self):
         """Delete all documents in collection."""
         try:
-            self.client.delete_collection("documents")
-            self.collection = self.client.get_or_create_collection(name="documents")
+            self.client.delete_collection(COLLECTION_NAME)
+            self.collection = self.client.get_or_create_collection(name=COLLECTION_NAME)
             print("Index cleared.")
         except Exception as e:
             print(f"Error clearing index: {e}")

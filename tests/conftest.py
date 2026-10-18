@@ -8,7 +8,7 @@ redirects odf.paths to a temp folder.
 
 import pytest
 
-from tests.helpers import FakeEmbedder
+from tests.helpers import FakeEmbedder, make_docx
 from odf import paths
 
 
@@ -21,9 +21,24 @@ def isolated_data_dir(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def vector_search(isolated_data_dir, monkeypatch):
-    """A real ChromaDB-backed VectorSearch using the fake embedder."""
-    import odf.index.vector_search as vs_module
+def store(isolated_data_dir):
+    """A real ChromaDB-backed VectorStore using the fake embedder."""
+    from odf.index.store import VectorStore
 
-    monkeypatch.setattr(vs_module, "Embedder", FakeEmbedder)
-    return vs_module.VectorSearch()
+    return VectorStore(FakeEmbedder())
+
+
+@pytest.fixture
+def searcher(store):
+    from odf.search.service import SearchService
+
+    return SearchService(store, store.embedder)
+
+
+@pytest.fixture
+def two_docs(tmp_path):
+    finance = make_docx(tmp_path / "2023_Financial_Review.docx",
+                        paragraphs=["Quarterly budget report: marketing spend rose 12 percent."])
+    recipe = make_docx(tmp_path / "pasta.docx",
+                       paragraphs=["Boil water, add salt, cook spaghetti for nine minutes."])
+    return finance, recipe

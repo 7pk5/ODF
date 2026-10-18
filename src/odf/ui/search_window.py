@@ -12,19 +12,13 @@ import datetime
 
 from odf import paths
 from odf.desktop.opener import open_file
-from odf.index.file_indexer import FileIndexer
-from odf.index.vector_search import VectorSearch
-
-# ── Colour palette ───────────────────────────────────────────────
-BG         = "#1c1c1e"   # Window background  (macOS-dark)
-BG_PANEL   = "#242426"   # Right detail panel
-HOVER      = "#3a3a3c"   # Row hover
-SELECTED   = "#0A84FF"   # Apple-blue selection
-SEPARATOR  = "#38383a"   # Divider lines
-TEXT_1     = "#ffffff"   # Primary text
-TEXT_2     = "#98989e"   # Secondary / muted text
-ACCENT     = "#0A84FF"   # Button accent
-DANGER     = "#ff453a"   # Danger / close
+from odf.embedder import Embedder
+from odf.index import file_indexer, scanner
+from odf.index.store import VectorStore
+from odf.search.service import SearchService
+from odf.ui.theme import (
+    ACCENT, BG, BG_PANEL, HOVER, SELECTED, SEPARATOR, TEXT_1, TEXT_2, file_icon,
+)
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -44,8 +38,8 @@ class SearchWindow:
 
     def __init__(self):
         self.root          = None
-        self.vector_search = None
-        self.file_indexer  = None
+        self.store         = None
+        self.searcher      = None
         self._ready        = False
         self.results       = []
         self.selected_idx  = -1
@@ -252,8 +246,7 @@ class SearchWindow:
             w.destroy()
 
         ext   = os.path.splitext(res.get("filename", ""))[1].lower()
-        icons = {".pdf": "📕", ".docx": "📘", ".txt": "📄"}
-        icon  = icons.get(ext, "📄")
+        icon  = file_icon(res.get("filename", ""))
 
         pad = ctk.CTkFrame(self.detail, fg_color="transparent")
         pad.pack(fill="both", expand=True, padx=16, pady=16)
@@ -343,7 +336,7 @@ class SearchWindow:
 
     def _do_search(self, q):
         def run():
-            res = self.vector_search.search(q, top_k=8)
+            res = self.searcher.search(q, top_k=8)
             self.root.after(0, lambda: self._render(res))
         threading.Thread(target=run, daemon=True).start()
 
@@ -380,9 +373,7 @@ class SearchWindow:
         self._animate(min(target, self.MAX_H))
 
     def _make_row(self, idx, res):
-        ext   = os.path.splitext(res.get("filename", ""))[1].lower()
-        icons = {".pdf": "📕", ".docx": "📘", ".txt": "📄"}
-        icon  = icons.get(ext, "📄")
+        icon  = file_icon(res.get("filename", ""))
         score = int(res.get("similarity", 0) * 100)
 
         row = ctk.CTkFrame(
@@ -554,16 +545,16 @@ class SearchWindow:
 
     def _index_thread(self, folder):
         try:
-            removed = self.vector_search.cleanup_deleted_files()
+            removed = self.store.cleanup_deleted_files()
             if removed > 0:
                 self.root.after(
                     0, lambda r=removed: self.status_lbl.configure(
                         text=f"Removed {r} deleted file{'s' if r > 1 else ''} from index"
                     )
                 )
-            self.vector_search.remove_stale_versions()
+            self.store.remove_stale_versions()
 
-            files = self.file_indexer.scan_directory(folder)
+            files = scanner.scan_directory(folder)
             if not files:
                 self.root.after(
                     0, lambda: messagebox.showinfo(
@@ -574,7 +565,7 @@ class SearchWindow:
                 return
 
             total    = len(files)
-            existing = self.vector_search.get_all_ids()
+            existing = self.store.get_all_ids()
 
             # Throttle UI updates — only refresh every 5 files to avoid flooding
             # the event queue and freezing the window
@@ -588,8 +579,8 @@ class SearchWindow:
                         )
                     )
 
-            gen = self.file_indexer.process_files(files, existing_ids=existing)
-            self.vector_search.add_documents(gen, progress_callback=on_progress)
+            gen = file_indexer.process_files(files, existing_ids=existing)
+            self.store.add_documents(gen, progress_callback=on_progress)
 
             self.root.after(
                 0, lambda: messagebox.showinfo(
@@ -609,7 +600,7 @@ class SearchWindow:
         if not self._ready:
             return
         try:
-            if self.vector_search.get_stats()["count"] == 0:
+            if self.store.get_stats()["count"] == 0:
                 if messagebox.askyesno(
                     "Welcome to ODF",
                     "No documents indexed yet.\nWould you like to index a folder now?",
@@ -630,10 +621,10 @@ class SearchWindow:
 
     def _init_backend(self):
         try:
-            vs = VectorSearch()
-            fi = FileIndexer()
-            self.vector_search = vs
-            self.file_indexer  = fi
+            embedder = Embedder()
+            store = VectorStore(embedder)
+            self.store         = store
+            self.searcher      = SearchService(store, embedder)
             self._ready        = True
             self.root.after(0, self._on_backend_ready)
         except Exception as exc:
@@ -643,7 +634,7 @@ class SearchWindow:
 
     def _on_backend_ready(self):
         self.index_btn.configure(state="normal")
-        n = self.vector_search.get_stats()["count"]
+        n = self.store.get_stats()["count"]
         self.status_lbl.configure(
             text=f"{n} chunks indexed" if n else "Ready  ·  index a folder to start"
         )

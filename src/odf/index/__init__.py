@@ -1,1 +1,1 @@
-"""Indexing: text extraction, chunking, embedding and the vector store."""
+"""Text extraction, chunking, embedding storage and file scanning for the index."""

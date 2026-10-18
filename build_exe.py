@@ -67,9 +67,9 @@ def build_exe():
             for f in filenames
         ) / (1024 * 1024)
         print(f"\n{'=' * 60}")
-        print(f"  BUILD SUCCESSFUL")
-        print(f"  Folder : dist/ODF/")
-        print(f"  EXE    : dist/ODF/ODF.exe")
+        print("  BUILD SUCCESSFUL")
+        print("  Folder : dist/ODF/")
+        print("  EXE    : dist/ODF/ODF.exe")
         print(f"  Size   : {folder_mb:.1f} MB (total folder)")
         print(f"{'=' * 60}")
         print("\nHow to share:")
