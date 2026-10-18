@@ -123,6 +123,12 @@ def test_remove_stale_versions_deletes_in_batches(vector_search, tmp_path, monke
     assert vector_search.collection.get(include=[])["ids"] == ["new_chunk_0"]
 
 
+def test_chroma_telemetry_is_disabled(vector_search):
+    # chromadb 1.5.9 sends nothing, but keep it explicitly off so an
+    # upgrade can't silently break ODF's "no telemetry" promise
+    assert vector_search.client.get_settings().anonymized_telemetry is False
+
+
 # ── Known bugs (Phase 0). Remove the xfail marker when fixed. ──────
 
 @pytest.mark.xfail(strict=True, reason="B3: results are per chunk, so one long file can fill every slot")

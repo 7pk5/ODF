@@ -18,7 +18,12 @@ class VectorSearch:
         # or project root (script), so it always has write permission
         self.db_path = platform_paths.chroma_db_dir()
 
-        self.client = chromadb.PersistentClient(path=self.db_path)
+        # Telemetry off explicitly: ODF promises no network calls after the
+        # one-time model download, whatever a chromadb upgrade defaults to
+        self.client = chromadb.PersistentClient(
+            path=self.db_path,
+            settings=Settings(anonymized_telemetry=False),
+        )
         
         # Get or create collection
         self.collection = self.client.get_or_create_collection(
