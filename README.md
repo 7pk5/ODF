@@ -82,14 +82,17 @@ ODF is a three-layer desktop application. The UI layer never talks to storage di
   }
 }}%%
 flowchart TB
-    subgraph UI["&nbsp;🖥️ Presentation Layer · ui/&nbsp;"]
+    subgraph UI["&nbsp;🖥️ Presentation Layer · odf/ui/&nbsp;"]
         HK(["⌨️ Global Hotkey<br/>Ctrl+K · keyboard lib"])
         SW("🔍 SearchWindow<br/>CustomTkinter overlay")
     end
 
-    subgraph ENGINE["&nbsp;⚙️ Engine Layer · search_engine/&nbsp;"]
-        FI("📂 FileIndexer<br/>scan · extract · fingerprint")
-        VS("🧭 VectorSearch<br/>chunk · retrieve · rank")
+    subgraph ENGINE["&nbsp;⚙️ Engine Layer · odf/index · odf/search · odf/extract&nbsp;"]
+        SC("📂 Scanner<br/>walk folders · skip rules")
+        FI("🧾 File Indexer<br/>fingerprint · parallel extract")
+        EX("📑 Extractors<br/>PDF · DOCX → clean text")
+        VS("🗃️ VectorStore<br/>chunk · upsert · cleanup")
+        SS("🧭 SearchService<br/>retrieve · hybrid rank")
         EMB("🧠 Embedder<br/>FastEmbed · ONNX · CPU<br/>bge-small-en-v1.5")
     end
 
@@ -99,11 +102,15 @@ flowchart TB
     end
 
     HK -->|toggle| SW
-    SW -->|index folder| FI
-    SW -->|search query| VS
-    FI -->|read files| FS
+    SW -->|index folder| SC
+    SC -->|file list| FI
+    FI -->|extract| EX
+    EX -->|read files| FS
     FI -->|documents + metadata| VS
-    VS <-->|embed text| EMB
+    SW -->|search query| SS
+    SS -->|nearest chunks| VS
+    VS <-->|embed chunks| EMB
+    SS -->|embed query| EMB
     VS <-->|upsert / query| DB
     SW -.->|open result| FS
 
@@ -111,7 +118,7 @@ flowchart TB
     classDef engineNode fill:#2a1e45,stroke:#bc8cff,stroke-width:1.5px,color:#f0f6fc
     classDef storeNode fill:#0c2f21,stroke:#3fb950,stroke-width:1.5px,color:#f0f6fc
     class HK,SW uiNode
-    class FI,VS,EMB engineNode
+    class SC,FI,EX,VS,SS,EMB engineNode
     class DB,FS storeNode
 
     style UI fill:#0d1420,stroke:#30363d,stroke-width:1px
@@ -332,24 +339,37 @@ Planned retrieval-quality improvements, in priority order:
 
 ```
 ODF/
-├── main.py                     # Entry point: logging, hotkey, crash handling
-├── build_exe.py                # Local build wrapper → dist/ODF/ODF.exe
-├── requirements.txt
-├── ui/
-│   └── search_window.py        # Spotlight-style overlay (CustomTkinter)
-├── search_engine/
+├── src/odf/
+│   ├── __main__.py             # Entry point: `python -m odf`, `odf`, and the EXE
+│   ├── app.py                  # Startup: logging, VC++ check, hotkey, crash handling
+│   ├── paths.py                # OS-appropriate data/model/log directories
 │   ├── embedder.py             # FastEmbed wrapper (bge-small-en-v1.5, ONNX)
-│   ├── file_indexer.py         # Folder scan, text extraction, fingerprinting
-│   └── vector_search.py        # ChromaDB store, chunking, retrieval + ranking
-├── utils/
-│   ├── open_file.py            # Cross-platform "open with default app"
-│   └── platform_paths.py       # OS-appropriate data/model/log directories
-├── data/                       # ChromaDB index (script mode, gitignored)
-├── models/                     # Embedding model cache (gitignored)
+│   ├── extract/                # Text extraction, one module per format
+│   │   ├── pdf.py  word.py  text.py
+│   │   └── clean.py            # Whitespace/control-char cleanup, size cap
+│   ├── index/
+│   │   ├── scanner.py          # Folder walk + skip rules
+│   │   ├── file_indexer.py     # Fingerprinting + parallel extraction
+│   │   ├── chunking.py         # Overlapping text chunks
+│   │   └── store.py            # VectorStore: ChromaDB storage, cleanup
+│   ├── search/
+│   │   └── service.py          # SearchService: vector retrieval + keyword boosts
+│   ├── desktop/
+│   │   └── opener.py           # Cross-platform "open with default app"
+│   └── ui/
+│       ├── search_window.py    # Spotlight-style overlay (CustomTkinter)
+│       └── theme.py            # Colours and file icons
+├── tests/                      # pytest suite (offline, fake embedder)
+├── docs/                       # HOW_IT_WORKS.md
 ├── packaging/
 │   └── odf.spec                # PyInstaller build settings (shared by build_exe.py + CI)
+├── build_exe.py                # Local build wrapper → dist/ODF/ODF.exe
+├── pyproject.toml              # Package metadata, `odf` command, pytest config
+├── requirements*.txt           # Pinned runtime / build / dev dependencies
+├── data/  models/              # Index + model cache in script mode (gitignored)
 └── .github/workflows/
-    └── build-windows.yml       # CI: build + release EXE on version tags
+    ├── tests.yml               # CI: tests on Windows + Linux for every push/PR
+    └── build-windows.yml       # CI: tests, build, smoke-test, release EXE on version tags
 ```
 
 ## Contributing
