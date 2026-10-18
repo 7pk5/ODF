@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from utils import open_file as opener
+from odf.desktop import opener
 
 
 @pytest.fixture

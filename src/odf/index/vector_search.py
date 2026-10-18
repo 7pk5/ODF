@@ -6,8 +6,8 @@ Handles ChromaDB-based similarity search for document retrieval.
 import chromadb
 from chromadb.config import Settings
 import os
-from search_engine.embedder import Embedder
-from utils import platform_paths
+from odf import paths
+from odf.index.embedder import Embedder
 
 class VectorSearch:
     def __init__(self):
@@ -16,7 +16,7 @@ class VectorSearch:
         
         # Initialize ChromaDB persistent client in the OS user-data dir (EXE)
         # or project root (script), so it always has write permission
-        self.db_path = platform_paths.chroma_db_dir()
+        self.db_path = paths.chroma_db_dir()
 
         # Telemetry off explicitly: ODF promises no network calls after the
         # one-time model download, whatever a chromadb upgrade defaults to

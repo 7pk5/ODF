@@ -1,4 +1,4 @@
-from search_engine.vector_search import VectorSearch
+from odf.index.vector_search import VectorSearch
 
 # The splitter doesn't use instance state, so call it without building a VectorSearch
 split = VectorSearch._recursive_text_split

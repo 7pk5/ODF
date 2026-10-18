@@ -7,7 +7,7 @@ from fastembed import TextEmbedding
 import numpy as np
 from typing import List
 
-from utils import platform_paths
+from odf import paths
 
 class Embedder:
     def __init__(self, model_name='BAAI/bge-small-en-v1.5'):
@@ -28,7 +28,7 @@ class Embedder:
             self.model = TextEmbedding(
                 model_name=model_name,
                 threads=None,
-                cache_dir=platform_paths.model_cache_dir(),
+                cache_dir=paths.model_cache_dir(),
             )
             print(f"Model '{model_name}' loaded successfully!")
         except Exception as e:

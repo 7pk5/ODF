@@ -7,13 +7,13 @@ import sys
 import logging
 
 import keyboard
-from ui.search_window import SearchWindow
-from utils import platform_paths
+from odf import paths
+from odf.ui.search_window import SearchWindow
 
 
 def _setup_logging():
     """Write logs to the OS user-data dir (EXE) or project root (script mode)."""
-    log_path = platform_paths.log_path()
+    log_path = paths.log_path()
 
     # In windowed EXE mode sys.stdout/stderr are None.
     # Redirect both to the log file so tqdm/fastembed/chromadb don't crash

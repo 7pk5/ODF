@@ -10,10 +10,10 @@ import threading
 import os
 import datetime
 
-from search_engine.vector_search import VectorSearch
-from search_engine.file_indexer import FileIndexer
-from utils.open_file import open_file
-from utils import platform_paths
+from odf import paths
+from odf.desktop.opener import open_file
+from odf.index.file_indexer import FileIndexer
+from odf.index.vector_search import VectorSearch
 
 # ── Colour palette ───────────────────────────────────────────────
 BG         = "#1c1c1e"   # Window background  (macOS-dark)
@@ -621,7 +621,7 @@ class SearchWindow:
     # ── Backend lazy init ─────────────────────────────────────────
 
     def _start_backend_init(self):
-        model_dir = platform_paths.model_cache_dir()
+        model_dir = paths.model_cache_dir()
         # If model cache is empty this is a first-run download (~130 MB, one time only)
         has_model = os.path.isdir(model_dir) and any(os.scandir(model_dir))
         msg = "Loading AI model…" if has_model else "Downloading AI model (~130 MB, one-time)…"
@@ -650,7 +650,7 @@ class SearchWindow:
         self._check_empty_db()
 
     def _on_backend_error(self, msg):
-        log_path = platform_paths.log_path()
+        log_path = paths.log_path()
         self.status_lbl.configure(text="⚠  Model failed to load")
         messagebox.showerror(
             "Startup Error",

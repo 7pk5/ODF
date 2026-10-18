@@ -38,16 +38,14 @@ Run `build_exe.py` once and it produces `dist/ODF/` — a folder containing `ODF
 
 **Step 1: Set up (first time only)**
 ```
-pip install -r requirements.txt
+pip install -e .
 ```
-This downloads all the libraries the app needs (~500 MB total, mostly the AI model and database).
+This installs ODF and downloads all the libraries the app needs (~500 MB total, mostly the AI model and database).
 
 **Step 2: Run**
 ```
-python main.py
+python -m odf
 ```
-
-**On Windows you can also double-click `run_project.bat`** — it does the same thing.
 
 ---
 
@@ -288,12 +286,12 @@ The trade-off: embedding is slower than GPU-based tools. For a typical personal 
 ```
 FIRST TIME SETUP
 ─────────────────
-pip install -r requirements.txt          # install dependencies
-python main.py                           # launch the app
+pip install -e .                         # install ODF + dependencies
+python -m odf                            # launch the app
 
 DAILY USE
 ──────────
-python main.py                           # launch
+python -m odf                            # launch
 Ctrl+K                                   # toggle window on/off
 Click "＋ Index Folder" → pick folder    # index documents (do once per folder)
 Type your query                          # search

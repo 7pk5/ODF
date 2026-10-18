@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from search_engine.file_indexer import FileIndexer
+from odf.index.file_indexer import FileIndexer
 from tests.helpers import bump_mtime, make_docx, make_pdf
 
 

@@ -63,8 +63,8 @@ if not os.path.exists(icon):
     icon = None
 
 a = Analysis(
-    [os.path.join(ROOT, 'main.py')],
-    pathex=[ROOT],
+    [os.path.join(ROOT, 'src', 'odf', '__main__.py')],
+    pathex=[os.path.join(ROOT, 'src')],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,

@@ -249,8 +249,8 @@ cd ODF
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 
-pip install -r requirements.txt
-python main.py
+pip install -e .                # installs ODF + its pinned dependencies
+python -m odf                   # or just: odf
 ```
 
 Requires Python 3.11+. The embedding model is downloaded to `./models/` on first run.
@@ -287,7 +287,7 @@ CI builds the same artifact on every `v*` tag and attaches it to the GitHub Rele
 | Embedding model cache | `./models/` | `<data dir>/models/` |
 | Log file | `./odf.log` | `<data dir>/odf.log` |
 
-`<data dir>` is `%APPDATA%\ODF` on Windows, `~/Library/Application Support/ODF` on macOS, and `$XDG_DATA_HOME/ODF` (default `~/.local/share/ODF`) on Linux — see `utils/platform_paths.py`.
+`<data dir>` is `%APPDATA%\ODF` on Windows, `~/Library/Application Support/ODF` on macOS, and `$XDG_DATA_HOME/ODF` (default `~/.local/share/ODF`) on Linux — see `src/odf/paths.py`.
 
 - Your documents are **never copied, moved, or uploaded**. The index stores extracted text chunks, their vectors, and file paths — nothing else.
 - No telemetry, no analytics, no network calls after the one-time model download.
@@ -358,7 +358,7 @@ Contributions are welcome — the [Roadmap](#roadmap) is a good place to start. 
 
 1. Fork and create a feature branch.
 2. Keep changes focused; match the existing code style.
-3. Run the test suite (`pip install -r requirements-dev.txt`, then `python -m pytest`) — it's fast, offline, and runs in CI on Windows and Linux. Also test script mode (`python main.py`) and, for packaging-related changes, the PyInstaller build.
+3. Run the test suite (`pip install -r requirements-dev.txt -e .`, then `python -m pytest`) — it's fast, offline, and runs in CI on Windows and Linux. Also test script mode (`python -m odf`) and, for packaging-related changes, the PyInstaller build.
 4. Open a PR with a clear description of the problem and solution.
 
 ## License

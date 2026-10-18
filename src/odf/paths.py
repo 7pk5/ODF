@@ -32,8 +32,8 @@ def _user_data_root() -> str:
 
 
 def _project_root() -> str:
-    # utils/ is one level below the project root
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # this file lives at <project root>/src/odf/paths.py
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def app_data_dir() -> str:

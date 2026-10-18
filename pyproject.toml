@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "odf"
+description = "Offline Document Finder: local, AI-powered semantic search for your documents"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dynamic = ["version", "dependencies"]
+
+[project.scripts]
+odf = "odf.app:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "odf.__version__" }
+# Exact pins live in requirements.txt (see the note there about chromadb)
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-ra"
+xfail_strict = true
