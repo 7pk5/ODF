@@ -1,6 +1,6 @@
 """
 ODF Build Script
-Produces a single ODF.exe that anyone can double-click and run.
+Produces dist/ODF/ (folder with ODF.exe) that anyone can unzip and run.
 No Python installation required on the target machine.
 
 Usage:
@@ -16,7 +16,7 @@ import shutil
 def build_exe():
     print("=" * 60)
     print("  ODF - Build Script")
-    print("  Output: dist/ODF.exe  (single file, share and run)")
+    print("  Output: dist/ODF/ODF.exe  (zip the folder to share)")
     print("=" * 60)
 
     # ── 0. Clean previous builds ─────────────────────────────────
@@ -28,93 +28,36 @@ def build_exe():
                 os.remove(path)
             print(f"Cleaned: {path}")
 
-    # ── 1. Ensure PyInstaller is installed ───────────────────────
-    try:
-        import PyInstaller
-        print(f"PyInstaller found: {PyInstaller.__version__}")
-    except ImportError:
-        print("Installing PyInstaller...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
+    # ── 1. Install pinned build + runtime dependencies ───────────
+    #       Same requirements-build.txt that CI uses, so local and
+    #       release builds get identical package versions.
+    req_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "requirements-build.txt")
+    print("Installing pinned dependencies...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", req_path])
 
-    # ── 2. Ensure FastEmbed is installed ─────────────────────────
-    try:
-        import fastembed
-        print("FastEmbed found.")
-    except ImportError:
-        print("Installing FastEmbed...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "fastembed"])
-
-    # ── 3. (Model is downloaded on first launch by the end user) ──
+    # ── 2. (Model is downloaded on first launch by the end user) ──
     #       The AI model is NOT bundled in the EXE — this keeps the
     #       distribution small (~70 MB vs ~200 MB). On first launch,
     #       FastEmbed downloads the model (~130 MB) once to
     #       %APPDATA%\ODF\models\ and reuses it on every subsequent run.
 
-    # ── 4. Resolve icon path (optional) ──────────────────────────
-    icon_args = []
-    icon_candidates = [
-        os.path.join(os.path.dirname(__file__), "ODF_Logo.ico"),
-        os.path.join(os.path.dirname(__file__), "icon.ico"),
-    ]
-    for ico in icon_candidates:
-        if os.path.exists(ico):
-            icon_args = ["--icon", ico]
-            print(f"Using icon: {ico}")
-            break
-    if not icon_args:
-        print("No icon file found — building without icon. (Add ODF_Logo.ico to project root to include one.)")
-
-    # ── 5. PyInstaller command ────────────────────────────────────
+    # ── 3. PyInstaller command ────────────────────────────────────
+    #       All build settings (collected packages, hidden imports,
+    #       excludes, icon) live in packaging/odf.spec, shared with CI.
+    spec_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "packaging", "odf.spec")
     cmd = [
-        "pyinstaller",
+        sys.executable, "-m", "PyInstaller",
         "--noconfirm",
-        "--onedir",            # Folder distribution — no extraction on every launch
-        "--windowed",          # No console window
-        "--name", "ODF",
         "--clean",
-
-        # Collect all files for packages that use dynamic loading
-        "--collect-all", "chromadb",
-        "--collect-all", "fastembed",
-        "--collect-all", "onnxruntime",
-        "--collect-all", "tokenizers",
-        "--collect-all", "huggingface_hub",
-        "--collect-all", "customtkinter",
-        "--collect-all", "pdfminer",
-
-        # Hidden imports that PyInstaller may miss
-        "--hidden-import", "fastembed",
-        "--hidden-import", "fastembed.common",
-        "--hidden-import", "fastembed.text",
-        "--hidden-import", "fastembed.text.text_embedding",
-        "--hidden-import", "pdfminer.high_level",
-        "--hidden-import", "pdfminer.layout",
-        "--hidden-import", "docx",
-        "--hidden-import", "keyboard",
-        "--hidden-import", "chromadb.migrations",
-        "--hidden-import", "sqlite3",
-
-        # Exclude heavy packages that are not used
-        "--exclude-module", "matplotlib",
-        "--exclude-module", "scipy",
-        "--exclude-module", "PyQt5",
-        "--exclude-module", "PyQt6",
-        "--exclude-module", "wx",
-        "--exclude-module", "IPython",
-        "--exclude-module", "notebook",
-        "--exclude-module", "pytest",
-        "--exclude-module", "unittest",
-
-        # Entry point
-        "main.py",
-    ] + icon_args
+        spec_path,
+    ]
 
     print("\nRunning PyInstaller...\n")
     print(" ".join(cmd))
     print()
     subprocess.check_call(cmd)
 
-    # ── 6. Done ───────────────────────────────────────────────────
+    # ── 4. Done ───────────────────────────────────────────────────
     exe_path = os.path.join("dist", "ODF", "ODF.exe")
     folder_path = os.path.join("dist", "ODF")
     if os.path.exists(exe_path):

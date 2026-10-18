@@ -31,45 +31,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          pip install -r requirements-build.txt
 
       - name: Build ODF with PyInstaller
-        run: |
-          pyinstaller `
-            --noconfirm `
-            --onedir `
-            --windowed `
-            --name ODF `
-            --clean `
-            --icon ODF_Logo.ico `
-            --collect-all chromadb `
-            --collect-all fastembed `
-            --collect-all onnxruntime `
-            --collect-all tokenizers `
-            --collect-all huggingface_hub `
-            --collect-all customtkinter `
-            --collect-all pdfminer `
-            --hidden-import fastembed `
-            --hidden-import fastembed.common `
-            --hidden-import fastembed.text `
-            --hidden-import fastembed.text.text_embedding `
-            --hidden-import pdfminer.high_level `
-            --hidden-import pdfminer.layout `
-            --hidden-import docx `
-            --hidden-import keyboard `
-            --hidden-import chromadb.migrations `
-            --hidden-import sqlite3 `
-            --exclude-module matplotlib `
-            --exclude-module scipy `
-            --exclude-module PyQt5 `
-            --exclude-module PyQt6 `
-            --exclude-module wx `
-            --exclude-module IPython `
-            --exclude-module notebook `
-            --exclude-module pytest `
-            --exclude-module unittest `
-            main.py
+        # All build settings live in packaging/odf.spec (shared with build_exe.py)
+        run: pyinstaller --noconfirm --clean packaging/odf.spec
 
       - name: Verify build output
         run: |

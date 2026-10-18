@@ -3,22 +3,17 @@ Offline Document Finder (ODF)
 A smart AI-powered desktop tool for semantic search of local documents.
 """
 
-import os
 import sys
 import logging
 
 import keyboard
 from ui.search_window import SearchWindow
+from utils import platform_paths
 
 
 def _setup_logging():
-    """Write logs to %APPDATA%/ODF/odf.log (or project root in script mode)."""
-    if getattr(sys, 'frozen', False):
-        log_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'ODF')
-    else:
-        log_dir = os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(log_dir, exist_ok=True)
-    log_path = os.path.join(log_dir, 'odf.log')
+    """Write logs to the OS user-data dir (EXE) or project root (script mode)."""
+    log_path = platform_paths.log_path()
 
     # In windowed EXE mode sys.stdout/stderr are None.
     # Redirect both to the log file so tqdm/fastembed/chromadb don't crash
@@ -89,9 +84,6 @@ def main():
 
 
 def _run():
-    models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
-    os.makedirs(models_dir, exist_ok=True)
-
     search_window = SearchWindow()
 
     try:

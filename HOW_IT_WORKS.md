@@ -26,7 +26,7 @@ Everything runs on your machine. No internet. No cloud. No data leaves your PC.
 You need Python installed. This is the "raw" way.
 
 ### Option 2 — Build a standalone EXE (for anyone)
-Run `build_exe.py` once and it produces `dist/ODF.exe` — a single file you can double-click. No Python needed on the target machine. You can share this EXE with anyone and it just works.
+Run `build_exe.py` once and it produces `dist/ODF/` — a folder containing `ODF.exe` that you can double-click. No Python needed on the target machine. Zip the folder and share it with anyone.
 
 > **Note:** The EXE takes 20–30 seconds to open on the very first launch. This is a one-time thing — it's extracting bundled files to a temp folder. After that, it opens much faster.
 
@@ -57,7 +57,7 @@ python main.py
 python build_exe.py
 ```
 
-This takes several minutes. When done, `dist/ODF.exe` is your finished app. Share that single file with anyone.
+This takes several minutes. When done, `dist/ODF/` is your finished app. Zip that folder and share it with anyone.
 
 ---
 
@@ -201,7 +201,7 @@ Search speed grows slowly with database size because ChromaDB uses HNSW (a fast 
 | CPU | Any modern 64-bit CPU (2015 or newer) |
 | RAM | **4 GB** (2 GB for the OS, ~1.5 GB for the AI model + app) |
 | Disk | 1 GB free (for the app + AI model files) |
-| Python | 3.8 or newer (not needed for EXE) |
+| Python | 3.11 or newer (not needed for EXE) |
 | GPU | **Not required — runs entirely on CPU** |
 | Internet | **Not required at runtime** (only needed on first setup to download the AI model) |
 
@@ -303,8 +303,8 @@ Esc                                      # hide the window
 
 BUILD EXE (share with anyone)
 ───────────────────────────────
-python build_exe.py                      # builds dist/ODF.exe
-                                         # share ODF.exe — no Python needed
+python build_exe.py                      # builds dist/ODF/ODF.exe
+                                         # zip dist/ODF/ and share — no Python needed
 
 SYSTEM NEEDS
 ─────────────

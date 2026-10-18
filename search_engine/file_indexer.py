@@ -9,7 +9,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pdfminer.high_level import extract_text as extract_pdf_text
 from docx import Document
 import re
-from tqdm import tqdm
 import logging
 
 # Suppress annoying PDFMiner warnings

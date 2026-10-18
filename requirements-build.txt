@@ -1,0 +1,4 @@
+# Build-time dependencies for packaging ODF (used by build_exe.py and CI)
+-r requirements.txt
+
+pyinstaller==6.20.0

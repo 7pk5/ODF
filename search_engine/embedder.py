@@ -5,7 +5,9 @@ Handles text embedding using FastEmbed for high-performance semantic search.
 
 from fastembed import TextEmbedding
 import numpy as np
-from typing import List, Union
+from typing import List
+
+from utils import platform_paths
 
 class Embedder:
     def __init__(self, model_name='BAAI/bge-small-en-v1.5'):
@@ -20,25 +22,13 @@ class Embedder:
         try:
             print(f"Loading embedding model: {model_name}")
 
-            import sys
-            import os
-
-            # Always cache the model in %APPDATA%/ODF/models (EXE) or project/models (script).
+            # Cache the model in the OS user-data dir (EXE) or project/models (script).
             # This means the model is downloaded once on first launch and reused forever —
             # it does NOT need to be bundled inside the EXE, keeping distribution small.
-            if getattr(sys, 'frozen', False):
-                model_cache_dir = os.path.join(
-                    os.environ.get('APPDATA', os.path.expanduser('~')), 'ODF', 'models'
-                )
-            else:
-                model_cache_dir = os.path.join(os.path.dirname(__file__), '..', 'models')
-
-            os.makedirs(model_cache_dir, exist_ok=True)
-
             self.model = TextEmbedding(
                 model_name=model_name,
                 threads=None,
-                cache_dir=model_cache_dir,
+                cache_dir=platform_paths.model_cache_dir(),
             )
             print(f"Model '{model_name}' loaded successfully!")
         except Exception as e:

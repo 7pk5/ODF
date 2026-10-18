@@ -13,6 +13,7 @@ import datetime
 from search_engine.vector_search import VectorSearch
 from search_engine.file_indexer import FileIndexer
 from utils.open_file import open_file
+from utils import platform_paths
 
 # ── Colour palette ───────────────────────────────────────────────
 BG         = "#1c1c1e"   # Window background  (macOS-dark)
@@ -599,7 +600,7 @@ class SearchWindow:
             )
 
         except Exception as ex:
-            self.root.after(0, lambda: messagebox.showerror("Error", str(ex)))
+            self.root.after(0, lambda e=str(ex): messagebox.showerror("Error", e))
         finally:
             self.root.after(0, lambda: self.progress.pack_forget())
 
@@ -619,11 +620,7 @@ class SearchWindow:
     # ── Backend lazy init ─────────────────────────────────────────
 
     def _start_backend_init(self):
-        import sys, os
-        if getattr(sys, 'frozen', False):
-            model_dir = os.path.join(os.environ.get('APPDATA', ''), 'ODF', 'models')
-        else:
-            model_dir = os.path.join(os.path.dirname(__file__), '..', 'models')
+        model_dir = platform_paths.model_cache_dir()
         # If model cache is empty this is a first-run download (~130 MB, one time only)
         has_model = os.path.isdir(model_dir) and any(os.scandir(model_dir))
         msg = "Loading AI model…" if has_model else "Downloading AI model (~130 MB, one-time)…"
@@ -652,7 +649,7 @@ class SearchWindow:
         self._check_empty_db()
 
     def _on_backend_error(self, msg):
-        log_path = os.path.join(os.environ.get('APPDATA', '%APPDATA%'), 'ODF', 'odf.log')
+        log_path = platform_paths.log_path()
         self.status_lbl.configure(text="⚠  Model failed to load")
         messagebox.showerror(
             "Startup Error",

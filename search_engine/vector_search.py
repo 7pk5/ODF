@@ -6,32 +6,18 @@ Handles ChromaDB-based similarity search for document retrieval.
 import chromadb
 from chromadb.config import Settings
 import os
-import uuid
-import time
-from tqdm import tqdm
 from search_engine.embedder import Embedder
+from utils import platform_paths
 
 class VectorSearch:
     def __init__(self):
         """Initialize the vector search engine with ChromaDB."""
         self.embedder = Embedder()
         
-        # Initialize ChromaDB persistent client
-        # Persistence Logic:
-        # If frozen (exe), store data next to the executable file.
-        # If script, store in project root.
-        import sys
-        if getattr(sys, 'frozen', False):
-            # EXE: store user data in %APPDATA%/ODF so it always has write permission
-            base_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'ODF')
-        else:
-            base_dir = os.path.join(os.path.dirname(__file__), '..')
+        # Initialize ChromaDB persistent client in the OS user-data dir (EXE)
+        # or project root (script), so it always has write permission
+        self.db_path = platform_paths.chroma_db_dir()
 
-        self.db_path = os.path.join(base_dir, 'data', 'chroma_db')
-            
-        if not os.path.exists(self.db_path):
-            os.makedirs(self.db_path)
-            
         self.client = chromadb.PersistentClient(path=self.db_path)
         
         # Get or create collection
@@ -91,7 +77,6 @@ class VectorSearch:
         batch_ids = []
         batch_documents = []
         batch_metadatas = []
-        batch_embeddings = []
         
         count = 0
         

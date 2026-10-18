@@ -3,7 +3,7 @@
 > **Search like you think.** A local-first, AI-powered semantic search engine for your documents — fully offline, no cloud, no telemetry.
 
 [![Build Windows EXE](https://github.com/7pk5/ODF/actions/workflows/build-windows.yml/badge.svg)](https://github.com/7pk5/ODF/actions/workflows/build-windows.yml)
-[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 [![Runs Offline](https://img.shields.io/badge/inference-100%25%20local%20CPU-orange.svg)]()
@@ -61,7 +61,7 @@ Everything — text extraction, embedding, storage, retrieval — runs **on your
 - **Incremental indexing** — files are fingerprinted with `MD5(path + mtime)`; unchanged files are skipped on re-index, and entries for deleted files are cleaned up automatically.
 - **Parallel ingestion** — text extraction runs on up to 8 worker threads; the UI never blocks (search, indexing, and model loading all run off the main thread).
 - **Persistent local index** — ChromaDB with HNSW (cosine) storage on disk; index once, search forever.
-- **Single-file Windows EXE** — built with PyInstaller via `build_exe.py`, or automatically by CI on every version tag.
+- **No-install Windows build** — a zipped `ODF/` folder with `ODF.exe`, built with PyInstaller via `build_exe.py`, or automatically by CI on every version tag.
 
 ## Architecture
 
@@ -229,14 +229,14 @@ flowchart LR
 | DOCX extraction | `python-docx` | Paragraphs + tables |
 | UI | [CustomTkinter](https://customtkinter.tomschimansky.com/) | Modern dark UI on top of stdlib Tkinter — tiny footprint vs Electron/Qt |
 | Global hotkey | `keyboard` | OS-level Ctrl+K registration |
-| Packaging | PyInstaller (`build_exe.py`) + GitHub Actions | One-file Windows EXE, built automatically on version tags |
+| Packaging | PyInstaller (`packaging/odf.spec`) + GitHub Actions | Windows folder build (`ODF-Windows.zip`), built automatically on version tags |
 
 ## Getting Started
 
 ### Option A — Download the EXE (Windows, no Python required)
 
-1. Grab `ODF.exe` from the [latest release](https://github.com/7pk5/ODF/releases).
-2. Double-click. First launch downloads the embedding model (~130 MB, one time) and may take 20–30 s to unpack.
+1. Grab `ODF-Windows.zip` from the [latest release](https://github.com/7pk5/ODF/releases) and unzip it.
+2. Double-click `ODF.exe` inside the folder. First launch downloads the embedding model (~130 MB, one time) and may take 20–30 s to unpack.
 
 > **Note:** PyInstaller binaries occasionally trigger antivirus false positives. The build is reproducible from source via `build_exe.py` or the CI workflow.
 
@@ -253,12 +253,12 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Requires Python 3.8+. The embedding model is downloaded to `./models/` on first run.
+Requires Python 3.11+. The embedding model is downloaded to `./models/` on first run.
 
 ### Option C — Build the EXE yourself
 
 ```bash
-python build_exe.py             # produces dist/ODF.exe
+python build_exe.py             # produces dist/ODF/ODF.exe (zip the dist/ODF/ folder to share)
 ```
 
 CI builds the same artifact on every `v*` tag and attaches it to the GitHub Release.
@@ -283,9 +283,11 @@ CI builds the same artifact on every `v*` tag and attaches it to the GitHub Rele
 
 | Artifact | Script mode | Packaged EXE |
 |---|---|---|
-| Vector index | `./data/chroma_db/` | `%APPDATA%/ODF/data/chroma_db/` |
-| Embedding model cache | `./models/` | `%APPDATA%/ODF/models/` |
-| Log file | `./odf.log` | `%APPDATA%/ODF/odf.log` |
+| Vector index | `./data/chroma_db/` | `<data dir>/data/chroma_db/` |
+| Embedding model cache | `./models/` | `<data dir>/models/` |
+| Log file | `./odf.log` | `<data dir>/odf.log` |
+
+`<data dir>` is `%APPDATA%\ODF` on Windows, `~/Library/Application Support/ODF` on macOS, and `$XDG_DATA_HOME/ODF` (default `~/.local/share/ODF`) on Linux — see `utils/platform_paths.py`.
 
 - Your documents are **never copied, moved, or uploaded**. The index stores extracted text chunks, their vectors, and file paths — nothing else.
 - No telemetry, no analytics, no network calls after the one-time model download.
@@ -331,7 +333,7 @@ Planned retrieval-quality improvements, in priority order:
 ```
 ODF/
 ├── main.py                     # Entry point: logging, hotkey, crash handling
-├── build_exe.py                # PyInstaller build script → dist/ODF.exe
+├── build_exe.py                # Local build wrapper → dist/ODF/ODF.exe
 ├── requirements.txt
 ├── ui/
 │   └── search_window.py        # Spotlight-style overlay (CustomTkinter)
@@ -344,6 +346,8 @@ ODF/
 │   └── platform_paths.py       # OS-appropriate data/model/log directories
 ├── data/                       # ChromaDB index (script mode, gitignored)
 ├── models/                     # Embedding model cache (gitignored)
+├── packaging/
+│   └── odf.spec                # PyInstaller build settings (shared by build_exe.py + CI)
 └── .github/workflows/
     └── build-windows.yml       # CI: build + release EXE on version tags
 ```

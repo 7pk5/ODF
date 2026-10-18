@@ -232,6 +232,8 @@ models/metadata.pkl
 build/
 dist/
 *.spec
+# ...except the shared build spec used by build_exe.py and CI
+!packaging/odf.spec
 *.egg-info/
 .mesonpy-*/
 meson-logs/
@@ -260,12 +262,5 @@ RUN_INSTRUCTIONS.md
 
 RESUME_CONTENT.md
 
-# graphify internal files (keep only graph.html, graph.json, GRAPH_REPORT.md)
-graphify-out/.graphify_python
-graphify-out/cache/
-graphify-out/cost.json
-graphify-out/manifest.json
-graphify-out/.graphify_*.json
-graphify-out/.graphify_*.txt
-graphify-out/.needs_update
-graphify-out/.graphify_old.json
+# graphify output (generated; regenerate locally)
+graphify-out/
