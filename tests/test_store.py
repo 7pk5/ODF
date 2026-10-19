@@ -1,3 +1,4 @@
+import logging
 import os
 
 import pytest
@@ -84,6 +85,18 @@ def test_remove_stale_versions_deletes_in_batches(store, tmp_path, monkeypatch):
 
     assert store.remove_stale_versions() == 1
     assert store.collection.get(include=[])["ids"] == ["new_chunk_0"]
+
+
+def test_failed_batch_is_logged_with_traceback(store, monkeypatch, caplog):
+    def upsert(**kwargs):
+        raise RuntimeError("disk full")
+    monkeypatch.setattr(store.collection, "upsert", upsert)
+
+    with caplog.at_level(logging.ERROR, logger="odf"):
+        store._process_batch(["a_chunk_0"], ["text"], [{"source": "a.pdf"}])
+
+    [record] = [r for r in caplog.records if r.levelname == "ERROR"]
+    assert record.exc_info and "disk full" in str(record.exc_info[1])
 
 
 def test_chroma_telemetry_is_disabled(store):

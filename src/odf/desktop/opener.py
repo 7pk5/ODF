@@ -3,9 +3,12 @@ File Opener Utility
 Opens files using the default system application.
 """
 
+import logging
 import os
 import subprocess
 import platform
+
+log = logging.getLogger(__name__)
 
 def open_file(file_path):
     """
@@ -15,7 +18,7 @@ def open_file(file_path):
         file_path (str): Path to the file to open
     """
     if not os.path.exists(file_path):
-        print(f"File not found: {file_path}")
+        log.warning("File not found: %s", file_path)
         return False
     
     try:
@@ -29,12 +32,12 @@ def open_file(file_path):
         elif system == "Linux":
             subprocess.run(["xdg-open", file_path])
         else:
-            print(f"Unsupported operating system: {system}")
+            log.warning("Unsupported operating system: %s", system)
             return False
         
-        print(f"Opened file: {file_path}")
+        log.info("Opened file: %s", file_path)
         return True
         
-    except Exception as e:
-        print(f"Error opening file {file_path}: {e}")
+    except Exception:
+        log.exception("Error opening file %s", file_path)
         return False

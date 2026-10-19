@@ -1,3 +1,5 @@
+import logging
+
 from odf.extract import extract_text
 from odf.extract.clean import clean_text
 from tests.helpers import make_docx, make_pdf
@@ -19,10 +21,12 @@ def test_extracts_pdf_text(tmp_path):
     assert "Quarterly budget report for marketing" in extract_text(path, ".pdf")
 
 
-def test_corrupt_file_extracts_to_empty_string(tmp_path):
+def test_corrupt_file_extracts_to_empty_string_and_is_logged(tmp_path, caplog):
     bad = tmp_path / "broken.pdf"
     bad.write_bytes(b"not really a pdf")
-    assert extract_text(str(bad), ".pdf") == ""
+    with caplog.at_level(logging.WARNING, logger="odf"):
+        assert extract_text(str(bad), ".pdf") == ""
+    assert any(r.levelname == "WARNING" and str(bad) in r.getMessage() for r in caplog.records)
 
 
 def test_clean_text_collapses_whitespace_strips_control_chars_and_caps_length():

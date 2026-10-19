@@ -3,11 +3,15 @@ Vector Store
 ChromaDB-backed storage of document chunks and their embeddings.
 """
 
+import logging
+
 import chromadb
 from chromadb.config import Settings
 import os
 from odf import paths
 from odf.index.chunking import split_text
+
+log = logging.getLogger(__name__)
 
 COLLECTION_NAME = "documents"
 
@@ -34,7 +38,7 @@ class VectorStore:
             metadata={"hnsw:space": "cosine"} # Use cosine similarity
         )
 
-        print(f"VectorStore initialized with ChromaDB at {self.db_path}")
+        log.info("VectorStore initialized with ChromaDB at %s", self.db_path)
 
     def add_documents(self, documents_generator, batch_size=100, progress_callback=None):
         """
@@ -81,13 +85,13 @@ class VectorStore:
             if progress_callback:
                 progress_callback(count, doc.get('metadata', {}).get('filename', ''))
             elif count % 100 == 0:
-                print(f"Processed {count} documents...")
+                log.info("Processed %d documents", count)
 
         # Process remaining
         if batch_ids:
             self._process_batch(batch_ids, batch_documents, batch_metadatas)
             
-        print(f"Finished adding {count} documents to index.")
+        log.info("Finished adding %d documents to index.", count)
 
     def _process_batch(self, ids, documents, metadatas):
         """Helper to embedding and upsert a batch."""
@@ -105,8 +109,8 @@ class VectorStore:
                 metadatas=metadatas,
                 embeddings=embeddings.tolist()
             )
-        except Exception as e:
-            print(f"Error processing batch: {e}")
+        except Exception:
+            log.exception("Error storing a batch of %d chunks; they are missing from the index", len(ids))
 
     def count(self):
         """Number of chunks in the index."""
@@ -165,8 +169,8 @@ class VectorStore:
                     file_ids.add(sid) # Backwards compatibility
             
             return file_ids
-        except Exception as e:
-            print(f"Error getting IDs: {e}")
+        except Exception:
+            log.exception("Error getting IDs")
             return set()
 
     def get_all_source_paths(self):
@@ -176,8 +180,8 @@ class VectorStore:
                 return set()
             result = self.collection.get(include=["metadatas"])
             return {m["source"] for m in result["metadatas"] if m and "source" in m}
-        except Exception as e:
-            print(f"Error getting source paths: {e}")
+        except Exception:
+            log.exception("Error getting source paths")
             return set()
 
     def delete_by_source(self, file_path):
@@ -188,8 +192,8 @@ class VectorStore:
                 self.collection.delete(ids=result["ids"])
                 return len(result["ids"])
             return 0
-        except Exception as e:
-            print(f"Error deleting chunks for {file_path}: {e}")
+        except Exception:
+            log.exception("Error deleting chunks for %s", file_path)
             return 0
 
     def cleanup_deleted_files(self):
@@ -200,10 +204,10 @@ class VectorStore:
             for path in missing:
                 self.delete_by_source(path)
             if missing:
-                print(f"Cleaned up {len(missing)} deleted file(s) from index.")
+                log.info("Cleaned up %d deleted file(s) from index.", len(missing))
             return len(missing)
-        except Exception as e:
-            print(f"Error during cleanup: {e}")
+        except Exception:
+            log.exception("Error during cleanup")
             return 0
 
     def remove_stale_versions(self):
@@ -235,10 +239,10 @@ class VectorStore:
                 step = self.client.get_max_batch_size()
                 for i in range(0, len(stale_ids), step):
                     self.collection.delete(ids=stale_ids[i:i + step])
-                print(f"Removed stale versions of {cleaned} file(s) from index.")
+                log.info("Removed stale versions of %d file(s) from index.", cleaned)
             return cleaned
-        except Exception as e:
-            print(f"Error removing stale versions: {e}")
+        except Exception:
+            log.exception("Error removing stale versions")
             return 0
 
     def clear(self):
@@ -246,6 +250,6 @@ class VectorStore:
         try:
             self.client.delete_collection(COLLECTION_NAME)
             self.collection = self.client.get_or_create_collection(name=COLLECTION_NAME)
-            print("Index cleared.")
-        except Exception as e:
-            print(f"Error clearing index: {e}")
+            log.info("Index cleared.")
+        except Exception:
+            log.exception("Error clearing index")

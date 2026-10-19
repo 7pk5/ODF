@@ -4,11 +4,14 @@ Turns document files into index-ready records (id, text, metadata),
 extracting text in parallel.
 """
 
-import os
 import hashlib
+import logging
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from odf.extract import extension_of, extract_text
+
+log = logging.getLogger(__name__)
 
 
 def document_id(file_path, mtime):
@@ -24,7 +27,7 @@ def process_files(file_paths, existing_ids=None):
     if existing_ids is None:
         existing_ids = set()
 
-    print(f"Processing {len(file_paths)} files with {len(existing_ids)} existing IDs...")
+    log.info("Processing %d files with %d existing IDs", len(file_paths), len(existing_ids))
 
     # Computing the ID (md5 of path+mtime) is cheap; extracting text is
     # expensive, so check the ID before submitting work to the pool.
@@ -40,7 +43,8 @@ def process_files(file_paths, existing_ids=None):
         except OSError:
             continue
 
-    print(f"Skipping {skipped_count} already indexed files. Processing {len(files_to_process)} new/modified files.")
+    log.info("Skipping %d already indexed files. Processing %d new/modified files.",
+             skipped_count, len(files_to_process))
 
     # Threads rather than processes for Windows stability (ProcessPool requires strict entry point guards)
     with ThreadPoolExecutor(max_workers=min(8, os.cpu_count())) as executor:
@@ -52,8 +56,8 @@ def process_files(file_paths, existing_ids=None):
                 result = future.result()
                 if result:
                     yield result
-            except Exception as e:
-                print(f"Error processing file: {e}")
+            except Exception:
+                log.exception("Error processing %s", future_to_file[future])
 
 
 def process_file(file_path):
@@ -63,7 +67,7 @@ def process_file(file_path):
         content = extract_text(file_path, ext)
 
         if not content or not content.strip():
-            print(f"⚠️ Warning: No text content found in {os.path.basename(file_path)}")
+            log.warning("No text content found in %s", file_path)
             return None
 
         file_stats = os.stat(file_path)
@@ -78,6 +82,6 @@ def process_file(file_path):
                 "type": ext
             }
         }
-    except Exception as e:
-        print(f"❌ Error processing {file_path}: {e}")
+    except Exception:
+        log.exception("Error processing %s", file_path)
         return None

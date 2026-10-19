@@ -6,6 +6,7 @@ Spotlight-inspired UI: clean, minimal, two-panel layout.
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog, messagebox
+import logging
 import threading
 import os
 import datetime
@@ -17,6 +18,8 @@ from odf.engine import create_engine
 from odf.ui.theme import (
     ACCENT, BG, BG_PANEL, HOVER, SELECTED, SEPARATOR, TEXT_1, TEXT_2, file_icon,
 )
+
+log = logging.getLogger(__name__)
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -618,8 +621,7 @@ class SearchWindow:
             self._ready        = True
             self.root.after(0, self._on_backend_ready)
         except Exception as exc:
-            import logging
-            logging.exception("Backend init failed")
+            log.exception("Backend init failed")
             self.root.after(0, lambda e=str(exc): self._on_backend_error(e))
 
     def _on_backend_ready(self):

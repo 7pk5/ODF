@@ -1,8 +1,11 @@
 """Walk folders and collect supported document files."""
 
+import logging
 import os
 
 from odf.extract import SUPPORTED_EXTENSIONS, extension_of
+
+log = logging.getLogger(__name__)
 
 # Windows system locations never worth indexing (matched by path prefix)
 SYSTEM_FOLDERS = {
@@ -60,5 +63,5 @@ def scan_directory(folder_path, extensions=SUPPORTED_EXTENSIONS):
             if extension_of(file) in extensions:
                 all_files.append(os.path.join(root, file))
 
-    print(f"Found {len(all_files)} supported files to scan.")
+    log.info("Found %d supported files to scan.", len(all_files))
     return all_files

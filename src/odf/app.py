@@ -7,32 +7,10 @@ import sys
 import logging
 
 import keyboard
-from odf import paths
+from odf.logging_setup import setup_logging
 from odf.ui.search_window import SearchWindow
 
-
-def _setup_logging():
-    """Write logs to the OS user-data dir (EXE) or project root (script mode)."""
-    log_path = paths.log_path()
-
-    # In windowed EXE mode sys.stdout/stderr are None.
-    # Redirect both to the log file so tqdm/fastembed/chromadb don't crash
-    # when they try to print download progress or status messages.
-    if getattr(sys, 'frozen', False) and sys.stdout is None:
-        _f = open(log_path, 'a', encoding='utf-8', buffering=1)
-        sys.stdout = _f
-        sys.stderr = _f
-
-    handlers = [logging.FileHandler(log_path, encoding='utf-8')]
-    if not getattr(sys, 'frozen', False):
-        handlers.append(logging.StreamHandler(sys.stdout))
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(message)s',
-        handlers=handlers,
-    )
-    return log_path
+log = logging.getLogger(__name__)
 
 
 def _check_vcredist():
@@ -62,13 +40,13 @@ def _check_vcredist():
 
 
 def main():
-    log_path = _setup_logging()
-    logging.info("ODF starting")
+    log_path = setup_logging()
+    log.info("ODF starting")
     _check_vcredist()
     try:
         _run()
     except Exception as exc:
-        logging.exception("Fatal error")
+        log.exception("Fatal error")
         try:
             import tkinter as tk
             from tkinter import messagebox
@@ -88,15 +66,15 @@ def _run():
 
     try:
         keyboard.add_hotkey('ctrl+k', search_window.toggle_window)
-        logging.info("Global hotkey Ctrl+K registered")
+        log.info("Global hotkey Ctrl+K registered")
     except Exception as e:
-        logging.warning("Could not bind hotkey: %s", e)
+        log.warning("Could not bind hotkey: %s", e)
 
     try:
         search_window.show_window()
         search_window.root.mainloop()
     except KeyboardInterrupt:
-        logging.info("Shutting down")
+        log.info("Shutting down")
         try:
             keyboard.unhook_all()
         except Exception:

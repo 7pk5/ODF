@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 
@@ -21,6 +22,13 @@ def test_scan_recurses_but_skips_hidden_and_dev_folders(tmp_path):
         (tmp_path / folder).mkdir(parents=True)
         (tmp_path / folder / "doc.pdf").write_bytes(b"x")
     assert _rel(scanner.scan_directory(str(tmp_path)), tmp_path) == ["reports/2024/doc.pdf"]
+
+
+def test_scan_logs_how_many_files_it_found(tmp_path, caplog):
+    (tmp_path / "a.pdf").write_bytes(b"x")
+    with caplog.at_level(logging.INFO, logger="odf"):
+        scanner.scan_directory(str(tmp_path))
+    assert "Found 1 supported files to scan." in caplog.messages
 
 
 def test_scan_missing_folder_raises(tmp_path):

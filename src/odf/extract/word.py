@@ -1,8 +1,12 @@
 """Word (.docx) text extraction: paragraphs, then table cells."""
 
+import logging
+
 from docx import Document
 
 from odf.extract.clean import clean_text
+
+log = logging.getLogger(__name__)
 
 
 def extract(file_path):
@@ -14,5 +18,6 @@ def extract(file_path):
                 for cell in row.cells:
                     full_text.append(cell.text)
         return clean_text('\n'.join(full_text))
-    except Exception:
+    except Exception as e:
+        log.warning("Could not read Word document %s: %s", file_path, e)
         return ""

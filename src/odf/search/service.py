@@ -3,6 +3,10 @@ Search Service
 Hybrid search: semantic vector search + exact keyword boosting.
 """
 
+import logging
+
+log = logging.getLogger(__name__)
+
 # Fetch more candidates than requested so keyword boosts can re-rank them
 CANDIDATE_MULTIPLIER = 3
 # Score added when the query appears verbatim in the filename / chunk text
@@ -83,6 +87,6 @@ class SearchService:
             # Return top_k
             return candidates[:top_k]
 
-        except Exception as e:
-            print(f"Search error: {e}")
+        except Exception:
+            log.exception("Search failed for query %r", query)
             return []

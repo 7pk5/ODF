@@ -3,6 +3,7 @@ Document and Query Embedder
 Handles text embedding using FastEmbed for high-performance semantic search.
 """
 
+import logging
 import os
 
 from fastembed import TextEmbedding
@@ -10,6 +11,8 @@ import numpy as np
 from typing import List
 
 from odf import paths
+
+log = logging.getLogger(__name__)
 
 
 def model_is_cached():
@@ -28,7 +31,7 @@ class Embedder:
         """
         self.model_name = model_name
         try:
-            print(f"Loading embedding model: {model_name}")
+            log.info("Loading embedding model: %s", model_name)
 
             # Cache the model in the OS user-data dir (EXE) or project/models (script).
             # This means the model is downloaded once on first launch and reused forever —
@@ -38,9 +41,9 @@ class Embedder:
                 threads=None,
                 cache_dir=paths.model_cache_dir(),
             )
-            print(f"Model '{model_name}' loaded successfully!")
+            log.info("Model '%s' loaded", model_name)
         except Exception as e:
-            print(f"Failed to load model '{model_name}': {e}")
+            log.exception("Failed to load model '%s'", model_name)
             raise RuntimeError(f"Failed to initialize FastEmbed: {e}")
 
     def embed_texts(self, texts: List[str], batch_size: int = 32) -> np.ndarray:
@@ -63,8 +66,8 @@ class Embedder:
             embeddings_generator = self.model.embed(texts, batch_size=batch_size)
             embeddings_list = list(embeddings_generator)
             return np.array(embeddings_list)
-        except Exception as e:
-            print(f"Error embedding texts: {e}")
+        except Exception:
+            log.exception("Error embedding %d texts", len(texts))
             return np.array([])
 
     def embed_text(self, text: str) -> np.ndarray:
