@@ -10,14 +10,14 @@ import os
 from odf.extract import pdf, text, word
 
 EXTRACTORS = {
-    '.pdf': pdf.extract,
-    '.docx': word.extract,
-    '.txt': text.extract,
+    ".pdf": pdf.extract,
+    ".docx": word.extract,
+    ".txt": text.extract,
 }
 
 # Extensions picked up when scanning folders. The .txt extractor exists but
 # isn't enabled for indexing yet.
-SUPPORTED_EXTENSIONS = {'.pdf', '.docx'}
+SUPPORTED_EXTENSIONS = {".pdf", ".docx"}
 
 
 def extension_of(file_path):

@@ -5,10 +5,10 @@ Handles text embedding using FastEmbed for high-performance semantic search.
 
 import logging
 import os
-
-from fastembed import TextEmbedding
-import numpy as np
 from typing import List
+
+import numpy as np
+from fastembed import TextEmbedding
 
 from odf import paths
 
@@ -20,13 +20,14 @@ def model_is_cached():
     model_dir = paths.model_cache_dir()
     return os.path.isdir(model_dir) and any(os.scandir(model_dir))
 
+
 class Embedder:
-    def __init__(self, model_name='BAAI/bge-small-en-v1.5'):
+    def __init__(self, model_name="BAAI/bge-small-en-v1.5"):
         """
         Initialize the embedder with FastEmbed.
-        
+
         Args:
-            model_name (str): Name of the model to use. 
+            model_name (str): Name of the model to use.
                             Default 'BAAI/bge-small-en-v1.5' is very fast and accurate.
         """
         self.model_name = model_name
@@ -44,22 +45,22 @@ class Embedder:
             log.info("Model '%s' loaded", model_name)
         except Exception as e:
             log.exception("Failed to load model '%s'", model_name)
-            raise RuntimeError(f"Failed to initialize FastEmbed: {e}")
+            raise RuntimeError(f"Failed to initialize FastEmbed: {e}") from e
 
     def embed_texts(self, texts: List[str], batch_size: int = 32) -> np.ndarray:
         """
         Generate embeddings for multiple texts.
-        
+
         Args:
             texts (list): List of texts to embed
             batch_size (int): Batch size for processing (handled by FastEmbed internally)
-            
+
         Returns:
             np.ndarray: Array of embedding vectors
         """
         if not texts:
             return np.array([])
-        
+
         # Generator to list conversion as FastEmbed returns a generator
         try:
             # FastEmbed handles batching internally, but we can pass batch_size hint if needed
@@ -73,33 +74,33 @@ class Embedder:
     def embed_text(self, text: str) -> np.ndarray:
         """
         Generate embedding for a single text.
-        
+
         Args:
             text (str): Text to embed
-            
+
         Returns:
             np.ndarray: Embedding vector
         """
         if not text:
             return np.array([])
-        
+
         embeddings = self.embed_texts([text])
         if len(embeddings) > 0:
             return embeddings[0]
         return np.array([])
-    
+
     def get_embedding_dimension(self) -> int:
         """
         Get the dimension of the embedding vectors.
         """
         # FastEmbed doesn't expose this directly on the instance easily without embedding,
-        # but BAAI/bge-small-en-v1.5 is 384. 
+        # but BAAI/bge-small-en-v1.5 is 384.
         # We can do a dummy embed to check.
         dummy_emb = self.embed_text("test")
         if len(dummy_emb) > 0:
             return len(dummy_emb)
-        return 384 # Default for bge-small
-    
+        return 384  # Default for bge-small
+
     def get_model_info(self) -> dict:
         """
         Get information about the currently loaded model.
@@ -107,5 +108,5 @@ class Embedder:
         return {
             "model_name": self.model_name,
             "embedding_dimension": self.get_embedding_dimension(),
-            "library": "fastembed"
+            "library": "fastembed",
         }

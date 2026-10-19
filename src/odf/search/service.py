@@ -47,12 +47,12 @@ class SearchService:
             for hit in hits:
                 # Base Semantic Score
                 # Chroma's cosine distance is 1 - cosine similarity
-                base_score = 1 - hit['distance']
+                base_score = 1 - hit["distance"]
                 final_score = base_score
 
-                content_text = hit['document']
-                metadata = hit['metadata']
-                filename = metadata.get('filename', '').lower()
+                content_text = hit["document"]
+                metadata = hit["metadata"]
+                filename = metadata.get("filename", "").lower()
 
                 # --- HYBRID BOOSTING LOGIC ---
                 boost_applied = False
@@ -70,19 +70,21 @@ class SearchService:
                 # Ensure we don't exceed 1.0 (optional, but good for consistent UI%)
                 final_score = min(1.0, final_score)
 
-                candidates.append({
-                    'id': hit['id'],
-                    'similarity': max(0.0, float(final_score)),
-                    'base_score': base_score,  # Debugging
-                    'boosted': boost_applied,
-                    'content': content_text,
-                    'metadata': metadata,
-                    'file_path': metadata.get('source'),
-                    'filename': metadata.get('filename', 'Unknown'),
-                })
+                candidates.append(
+                    {
+                        "id": hit["id"],
+                        "similarity": max(0.0, float(final_score)),
+                        "base_score": base_score,  # Debugging
+                        "boosted": boost_applied,
+                        "content": content_text,
+                        "metadata": metadata,
+                        "file_path": metadata.get("source"),
+                        "filename": metadata.get("filename", "Unknown"),
+                    }
+                )
 
             # Re-rank based on final_score
-            candidates.sort(key=lambda x: x['similarity'], reverse=True)
+            candidates.sort(key=lambda x: x["similarity"], reverse=True)
 
             # Return top_k
             return candidates[:top_k]

@@ -1,7 +1,7 @@
 """Split document text into overlapping chunks for embedding."""
 
 # Preferred break points, best first
-SEPARATORS = ['\n\n', '\n', '. ', ' ']
+SEPARATORS = ["\n\n", "\n", ". ", " "]
 
 
 def split_text(text, chunk_size=1000, chunk_overlap=100):

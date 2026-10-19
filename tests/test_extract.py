@@ -34,8 +34,6 @@ def test_clean_text_collapses_whitespace_strips_control_chars_and_caps_length():
     assert len(clean_text("x" * 150_000)) == 100_000
 
 
-
-
 def test_unsupported_extension_extracts_nothing(tmp_path):
     other = tmp_path / "sheet.xlsx"
     other.write_bytes(b"x")

@@ -9,20 +9,30 @@ log = logging.getLogger(__name__)
 
 # Windows system locations never worth indexing (matched by path prefix)
 SYSTEM_FOLDERS = {
-    'C:\\WINDOWS',
-    'C:\\PROGRAM FILES',
-    'C:\\PROGRAM FILES (X86)',
-    'C:\\SYSTEM32',
-    'C:\\PROGRAMDATA',
-    'C:\\USERS\\DEFAULT',
-    'C:\\BOOT',
-    'C:\\RECOVERY',
+    "C:\\WINDOWS",
+    "C:\\PROGRAM FILES",
+    "C:\\PROGRAM FILES (X86)",
+    "C:\\SYSTEM32",
+    "C:\\PROGRAMDATA",
+    "C:\\USERS\\DEFAULT",
+    "C:\\BOOT",
+    "C:\\RECOVERY",
 }
 
 # Dev-environment / build folders (matched by folder name, case-insensitive)
 IGNORED_FOLDER_NAMES = {
-    'node_modules', 'site-packages', 'dist-info', '__pycache__',
-    'venv', 'env', 'odf_env', 'libs', 'include', 'scripts', 'bin', 'obj',
+    "node_modules",
+    "site-packages",
+    "dist-info",
+    "__pycache__",
+    "venv",
+    "env",
+    "odf_env",
+    "libs",
+    "include",
+    "scripts",
+    "bin",
+    "obj",
 }
 
 
@@ -34,7 +44,7 @@ def should_skip_folder(folder_path):
     name = os.path.basename(folder_path)
 
     # 1. Skip hidden directories
-    if name.startswith('.'):
+    if name.startswith("."):
         return True
 
     # 2. Skip specific ignore patterns

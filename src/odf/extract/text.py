@@ -6,13 +6,13 @@ from odf.extract.clean import clean_text
 
 log = logging.getLogger(__name__)
 
-ENCODINGS = ['utf-8', 'utf-16', 'latin-1', 'cp1252']
+ENCODINGS = ["utf-8", "utf-16", "latin-1", "cp1252"]
 
 
 def extract(file_path):
     for encoding in ENCODINGS:
         try:
-            with open(file_path, 'r', encoding=encoding) as file:
+            with open(file_path, "r", encoding=encoding) as file:
                 return clean_text(file.read())
         except Exception:
             continue

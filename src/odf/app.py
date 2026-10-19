@@ -3,10 +3,11 @@ Offline Document Finder (ODF)
 A smart AI-powered desktop tool for semantic search of local documents.
 """
 
-import sys
 import logging
+import sys
 
 import keyboard
+
 from odf.logging_setup import setup_logging
 from odf.ui.search_window import SearchWindow
 
@@ -18,12 +19,13 @@ def _check_vcredist():
     if sys.platform != "win32":
         return
     import ctypes
-    missing = [dll for dll in ("msvcp140.dll", "vcruntime140.dll")
-               if not ctypes.util.find_library(dll)]
+
+    missing = [dll for dll in ("msvcp140.dll", "vcruntime140.dll") if not ctypes.util.find_library(dll)]
     if missing:
         try:
             import tkinter as tk
             from tkinter import messagebox
+
             _r = tk.Tk()
             _r.withdraw()
             messagebox.showerror(
@@ -50,6 +52,7 @@ def main():
         try:
             import tkinter as tk
             from tkinter import messagebox
+
             _r = tk.Tk()
             _r.withdraw()
             messagebox.showerror(
@@ -65,7 +68,7 @@ def _run():
     search_window = SearchWindow()
 
     try:
-        keyboard.add_hotkey('ctrl+k', search_window.toggle_window)
+        keyboard.add_hotkey("ctrl+k", search_window.toggle_window)
         log.info("Global hotkey Ctrl+K registered")
     except Exception as e:
         log.warning("Could not bind hotkey: %s", e)
@@ -84,5 +87,3 @@ def _run():
 
 if __name__ == "__main__":
     main()
-
-

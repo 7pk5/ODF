@@ -11,9 +11,9 @@ from odf.index import file_indexer, scanner
 
 @dataclass
 class IndexResult:
-    files_found: int       # supported files in the folder, including unchanged ones
-    removed_deleted: int   # files dropped from the index because they no longer exist
-    repaired_stale: int    # files whose superseded versions were removed
+    files_found: int  # supported files in the folder, including unchanged ones
+    removed_deleted: int  # files dropped from the index because they no longer exist
+    repaired_stale: int  # files whose superseded versions were removed
 
 
 class IndexService:

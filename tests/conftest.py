@@ -8,8 +8,8 @@ redirects odf.paths to a temp folder.
 
 import pytest
 
-from tests.helpers import FakeEmbedder, make_docx
 from odf import paths
+from tests.helpers import FakeEmbedder, make_docx
 
 
 @pytest.fixture
@@ -37,8 +37,9 @@ def searcher(store):
 
 @pytest.fixture
 def two_docs(tmp_path):
-    finance = make_docx(tmp_path / "2023_Financial_Review.docx",
-                        paragraphs=["Quarterly budget report: marketing spend rose 12 percent."])
-    recipe = make_docx(tmp_path / "pasta.docx",
-                       paragraphs=["Boil water, add salt, cook spaghetti for nine minutes."])
+    finance = make_docx(
+        tmp_path / "2023_Financial_Review.docx",
+        paragraphs=["Quarterly budget report: marketing spend rose 12 percent."],
+    )
+    recipe = make_docx(tmp_path / "pasta.docx", paragraphs=["Boil water, add salt, cook spaghetti for nine minutes."])
     return finance, recipe

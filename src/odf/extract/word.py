@@ -17,7 +17,7 @@ def extract(file_path):
             for row in table.rows:
                 for cell in row.cells:
                     full_text.append(cell.text)
-        return clean_text('\n'.join(full_text))
+        return clean_text("\n".join(full_text))
     except Exception as e:
         log.warning("Could not read Word document %s: %s", file_path, e)
         return ""

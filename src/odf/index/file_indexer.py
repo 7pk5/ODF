@@ -43,8 +43,9 @@ def process_files(file_paths, existing_ids=None):
         except OSError:
             continue
 
-    log.info("Skipping %d already indexed files. Processing %d new/modified files.",
-             skipped_count, len(files_to_process))
+    log.info(
+        "Skipping %d already indexed files. Processing %d new/modified files.", skipped_count, len(files_to_process)
+    )
 
     # Threads rather than processes for Windows stability (ProcessPool requires strict entry point guards)
     with ThreadPoolExecutor(max_workers=min(8, os.cpu_count())) as executor:
@@ -79,8 +80,8 @@ def process_file(file_path):
                 "filename": os.path.basename(file_path),
                 "modified": file_stats.st_mtime,
                 "size": file_stats.st_size,
-                "type": ext
-            }
+                "type": ext,
+            },
         }
     except Exception:
         log.exception("Error processing %s", file_path)

@@ -58,10 +58,18 @@ def test_modified_file_replaces_old_chunks(store, tmp_path):
 def test_remove_stale_versions_repairs_indexes_built_before_the_fix(store, tmp_path):
     # Simulate a v1.2 index: two versions of notes.docx stored side by side
     path = str(tmp_path / "notes.docx")
+
     def chunk(version_id, mtime, text):
-        meta = {"source": path, "filename": "notes.docx", "modified": mtime,
-                "size": 1, "type": ".docx", "chunk_index": 0}
+        meta = {
+            "source": path,
+            "filename": "notes.docx",
+            "modified": mtime,
+            "size": 1,
+            "type": ".docx",
+            "chunk_index": 0,
+        }
         store._process_batch([f"{version_id}_chunk_0"], [text], [meta])
+
     chunk("old", 100.0, "Old content about zebras.")
     chunk("new", 200.0, "New content about giraffes.")
     other = make_docx(tmp_path / "other.docx", paragraphs=["Unrelated file"])
@@ -76,10 +84,20 @@ def test_remove_stale_versions_repairs_indexes_built_before_the_fix(store, tmp_p
 
 def test_remove_stale_versions_deletes_in_batches(store, tmp_path, monkeypatch):
     path = str(tmp_path / "big.docx")
-    meta = lambda mtime, i: {"source": path, "filename": "big.docx", "modified": mtime,
-                             "size": 1, "type": ".docx", "chunk_index": i}
-    store._process_batch([f"old_chunk_{i}" for i in range(7)],
-                                 [f"old text {i}" for i in range(7)], [meta(1.0, i) for i in range(7)])
+
+    def meta(mtime, i):
+        return {
+            "source": path,
+            "filename": "big.docx",
+            "modified": mtime,
+            "size": 1,
+            "type": ".docx",
+            "chunk_index": i,
+        }
+
+    store._process_batch(
+        [f"old_chunk_{i}" for i in range(7)], [f"old text {i}" for i in range(7)], [meta(1.0, i) for i in range(7)]
+    )
     store._process_batch(["new_chunk_0"], ["new text"], [meta(2.0, 0)])
     monkeypatch.setattr(store.client, "get_max_batch_size", lambda: 3)
 
@@ -90,6 +108,7 @@ def test_remove_stale_versions_deletes_in_batches(store, tmp_path, monkeypatch):
 def test_failed_batch_is_logged_with_traceback(store, monkeypatch, caplog):
     def upsert(**kwargs):
         raise RuntimeError("disk full")
+
     monkeypatch.setattr(store.collection, "upsert", upsert)
 
     with caplog.at_level(logging.ERROR, logger="odf"):

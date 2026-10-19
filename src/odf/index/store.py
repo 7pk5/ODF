@@ -4,10 +4,11 @@ ChromaDB-backed storage of document chunks and their embeddings.
 """
 
 import logging
+import os
 
 import chromadb
 from chromadb.config import Settings
-import os
+
 from odf import paths
 from odf.index.chunking import split_text
 
@@ -35,7 +36,7 @@ class VectorStore:
         # Get or create collection
         self.collection = self.client.get_or_create_collection(
             name=COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine"} # Use cosine similarity
+            metadata={"hnsw:space": "cosine"},  # Use cosine similarity
         )
 
         log.info("VectorStore initialized with ChromaDB at %s", self.db_path)
@@ -43,7 +44,7 @@ class VectorStore:
     def add_documents(self, documents_generator, batch_size=100, progress_callback=None):
         """
         Add documents to the ChromaDB collection in batches.
-        
+
         Args:
             documents_generator: Generator yielding dictionaries with 'content', 'metadata', 'id'
             batch_size (int): Number of documents to add at once
@@ -52,63 +53,58 @@ class VectorStore:
         batch_ids = []
         batch_documents = []
         batch_metadatas = []
-        
+
         count = 0
-        
+
         for doc in documents_generator:
-            content = doc['content']
-            base_id = doc['id']
-            metadata = doc['metadata']
+            content = doc["content"]
+            base_id = doc["id"]
+            metadata = doc["metadata"]
 
             # A modified file gets new chunk IDs (path+mtime), so drop the
             # previous version's chunks first or search returns stale text
-            self.delete_by_source(metadata['source'])
+            self.delete_by_source(metadata["source"])
 
             # Split content into chunks
             chunks = split_text(content)
-            
+
             for i, chunk in enumerate(chunks):
                 chunk_id = f"{base_id}_chunk_{i}"
                 batch_ids.append(chunk_id)
                 batch_documents.append(chunk)
                 # Helper: Add chunk index to metadata for debugging/ordering
                 chunk_meta = metadata.copy()
-                chunk_meta['chunk_index'] = i
+                chunk_meta["chunk_index"] = i
                 batch_metadatas.append(chunk_meta)
-            
+
             # Check batch size based on *chunks*, not files
             if len(batch_ids) >= batch_size:
                 self._process_batch(batch_ids, batch_documents, batch_metadatas)
                 batch_ids, batch_documents, batch_metadatas = [], [], []
-            
+
             count += 1
             if progress_callback:
-                progress_callback(count, doc.get('metadata', {}).get('filename', ''))
+                progress_callback(count, doc.get("metadata", {}).get("filename", ""))
             elif count % 100 == 0:
                 log.info("Processed %d documents", count)
 
         # Process remaining
         if batch_ids:
             self._process_batch(batch_ids, batch_documents, batch_metadatas)
-            
+
         log.info("Finished adding %d documents to index.", count)
 
     def _process_batch(self, ids, documents, metadatas):
         """Helper to embedding and upsert a batch."""
         try:
-            # Check which documents already exist to avoid re-work (Naïve check, Chroma handles upsert but we can save embedding time)
-            # For now, we trust upsert. To optimize, we could check existence first.
-            
+            # Chroma upserts, so re-adding existing chunks is safe; checking
+            # existence first could save embedding time but isn't done yet.
+
             # Generate embeddings using FastEmbed
             embeddings = self.embedder.embed_texts(documents)
-            
+
             # Upsert to Chroma
-            self.collection.upsert(
-                ids=ids,
-                documents=documents,
-                metadatas=metadatas,
-                embeddings=embeddings.tolist()
-            )
+            self.collection.upsert(ids=ids, documents=documents, metadatas=metadatas, embeddings=embeddings.tolist())
         except Exception:
             log.exception("Error storing a batch of %d chunks; they are missing from the index", len(ids))
 
@@ -121,53 +117,49 @@ class VectorStore:
         Nearest chunks to `query_embedding`, closest first, as dicts with
         id, distance (cosine, 0-2), document (chunk text) and metadata.
         """
-        results = self.collection.query(
-            query_embeddings=[query_embedding.tolist()],
-            n_results=n_results,
-            where=where
-        )
-        if not results['ids']:
+        results = self.collection.query(query_embeddings=[query_embedding.tolist()], n_results=n_results, where=where)
+        if not results["ids"]:
             return []
         return [
             {
-                'id': chunk_id,
-                'distance': distance,
-                'document': document or "",
-                'metadata': metadata or {},
+                "id": chunk_id,
+                "distance": distance,
+                "document": document or "",
+                "metadata": metadata or {},
             }
             for chunk_id, distance, document, metadata in zip(
-                results['ids'][0], results['distances'][0],
-                results['documents'][0], results['metadatas'][0],
+                results["ids"][0],
+                results["distances"][0],
+                results["documents"][0],
+                results["metadatas"][0],
+                strict=True,
             )
         ]
 
     def get_stats(self):
         """Get database statistics."""
-        return {
-            "count": self.count(),
-            "path": self.db_path
-        }
-    
+        return {"count": self.count(), "path": self.db_path}
+
     def get_all_ids(self):
         """Get set of all document IDs currently in the index."""
         try:
             if self.collection.count() == 0:
                 return set()
-            
+
             # ChromaDB get() without args returns all info. We just need IDs.
             # Depending on DB size, this might be heavy, but IDs are small (MD5).
-            result = self.collection.get(include=[]) # Don't fetch embeddings or documents
-            all_server_ids = result['ids']
-            
+            result = self.collection.get(include=[])  # Don't fetch embeddings or documents
+            all_server_ids = result["ids"]
+
             # Convert server IDs (file_hash_chunk_X) back to file IDs (file_hash)
             # We just split by '_chunk_' and take the first part
             file_ids = set()
             for sid in all_server_ids:
-                if '_chunk_' in sid:
-                    file_ids.add(sid.split('_chunk_')[0])
+                if "_chunk_" in sid:
+                    file_ids.add(sid.split("_chunk_")[0])
                 else:
-                    file_ids.add(sid) # Backwards compatibility
-            
+                    file_ids.add(sid)  # Backwards compatibility
+
             return file_ids
         except Exception:
             log.exception("Error getting IDs")
@@ -223,7 +215,7 @@ class VectorStore:
 
             # source -> {modified -> [chunk ids]}
             versions = {}
-            for chunk_id, m in zip(result["ids"], result["metadatas"]):
+            for chunk_id, m in zip(result["ids"], result["metadatas"], strict=True):
                 if m and "source" in m:
                     versions.setdefault(m["source"], {}).setdefault(m.get("modified", 0), []).append(chunk_id)
 
@@ -238,7 +230,7 @@ class VectorStore:
             if stale_ids:
                 step = self.client.get_max_batch_size()
                 for i in range(0, len(stale_ids), step):
-                    self.collection.delete(ids=stale_ids[i:i + step])
+                    self.collection.delete(ids=stale_ids[i : i + step])
                 log.info("Removed stale versions of %d file(s) from index.", cleaned)
             return cleaned
         except Exception:

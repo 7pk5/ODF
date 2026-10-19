@@ -10,7 +10,7 @@ def clean_text(text):
     if not text:
         return ""
     # Remove excessive whitespace
-    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r"\s+", " ", text)
     # Remove null bytes etc
-    text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
+    text = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", text)
     return text.strip()[:MAX_CHARS]

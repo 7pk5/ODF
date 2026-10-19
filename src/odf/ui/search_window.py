@@ -3,20 +3,29 @@ ODF Search Window
 Spotlight-inspired UI: clean, minimal, two-panel layout.
 """
 
-import customtkinter as ctk
+import datetime
+import logging
+import os
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
-import logging
-import threading
-import os
-import datetime
+
+import customtkinter as ctk
 
 from odf import paths
 from odf.desktop.opener import open_file
 from odf.embedder import model_is_cached
 from odf.engine import create_engine
 from odf.ui.theme import (
-    ACCENT, BG, BG_PANEL, HOVER, SELECTED, SEPARATOR, TEXT_1, TEXT_2, file_icon,
+    ACCENT,
+    BG,
+    BG_PANEL,
+    HOVER,
+    SELECTED,
+    SEPARATOR,
+    TEXT_1,
+    TEXT_2,
+    file_icon,
 )
 
 log = logging.getLogger(__name__)
@@ -27,25 +36,25 @@ ctk.set_default_color_theme("blue")
 
 class SearchWindow:
     # Layout constants
-    WIDTH         = 740
-    LIST_W        = 400   # left panel width
-    DETAIL_W      = 300   # right panel width  (LIST_W + DETAIL_W = 700 + padding)
-    BAR_H         = 64    # search-bar-only height
-    FOOTER_H      = 38    # always-visible footer
-    IDLE_H        = BAR_H + FOOTER_H   # collapsed window height
-    ROW_H         = 58    # each result row
-    MAX_ROWS      = 6     # rows visible before scrolling
-    MAX_H         = BAR_H + FOOTER_H + MAX_ROWS * ROW_H + 2  # max window height
+    WIDTH = 740
+    LIST_W = 400  # left panel width
+    DETAIL_W = 300  # right panel width  (LIST_W + DETAIL_W = 700 + padding)
+    BAR_H = 64  # search-bar-only height
+    FOOTER_H = 38  # always-visible footer
+    IDLE_H = BAR_H + FOOTER_H  # collapsed window height
+    ROW_H = 58  # each result row
+    MAX_ROWS = 6  # rows visible before scrolling
+    MAX_H = BAR_H + FOOTER_H + MAX_ROWS * ROW_H + 2  # max window height
 
     def __init__(self):
-        self.root          = None
-        self.indexer       = None
-        self.searcher      = None
-        self._ready        = False
-        self.results       = []
-        self.selected_idx  = -1
-        self.search_timer  = None
-        self._win_h        = self.IDLE_H
+        self.root = None
+        self.indexer = None
+        self.searcher = None
+        self._ready = False
+        self.results = []
+        self.selected_idx = -1
+        self.search_timer = None
+        self._win_h = self.IDLE_H
 
     # ── Window lifecycle ─────────────────────────────────────────
 
@@ -88,11 +97,11 @@ class SearchWindow:
             border_color=SEPARATOR,
         )
         self.shell.pack(fill="both", expand=True)
-        self.shell.pack_propagate(False)   # window size controlled by geometry only
+        self.shell.pack_propagate(False)  # window size controlled by geometry only
 
         self._make_search_bar()
-        self._make_footer()          # packed to bottom; always visible
-        self._make_body()            # packed in middle; hidden until results
+        self._make_footer()  # packed to bottom; always visible
+        self._make_body()  # packed in middle; hidden until results
 
         self._bind_keys()
         self._bind_drag()
@@ -101,8 +110,8 @@ class SearchWindow:
     def _center(self):
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
-        x  = (sw - self.WIDTH) // 2
-        y  = int(sh * 0.20)
+        x = (sw - self.WIDTH) // 2
+        y = int(sh * 0.20)
         self._win_h = self.IDLE_H
         self.root.geometry(f"{self.WIDTH}x{self._win_h}+{x}+{y}")
 
@@ -115,7 +124,8 @@ class SearchWindow:
 
         # Search glyph
         ctk.CTkLabel(
-            bar, text="⌕",
+            bar,
+            text="⌕",
             font=("Segoe UI", 26),
             text_color=TEXT_2,
             width=34,
@@ -139,12 +149,14 @@ class SearchWindow:
 
         # ESC pill
         esc = ctk.CTkLabel(
-            bar, text="esc",
+            bar,
+            text="esc",
             font=("Segoe UI", 10),
             text_color=TEXT_2,
             fg_color=HOVER,
             corner_radius=4,
-            width=30, height=18,
+            width=30,
+            height=18,
         )
         esc.pack(side="right", padx=(0, 4))
         esc.bind("<Button-1>", lambda e: self.root.withdraw())
@@ -157,14 +169,17 @@ class SearchWindow:
         foot.pack_propagate(False)
 
         self.status_lbl = ctk.CTkLabel(
-            foot, text="",
+            foot,
+            text="",
             font=("Segoe UI", 11),
             text_color=TEXT_2,
         )
         self.status_lbl.pack(side="left", padx=2)
 
         self.progress = ctk.CTkProgressBar(
-            foot, width=120, height=3,
+            foot,
+            width=120,
+            height=3,
             progress_color=ACCENT,
         )
         self.progress.set(0)
@@ -177,7 +192,8 @@ class SearchWindow:
             hover_color="#4a4a4c",
             text_color=TEXT_1,
             corner_radius=6,
-            height=26, width=130,
+            height=26,
+            width=130,
             state="disabled",
             command=self._browse_folder,
         )
@@ -197,7 +213,7 @@ class SearchWindow:
             scrollbar_button_color=SEPARATOR,
             scrollbar_button_hover_color=HOVER,
             width=self.LIST_W,
-            height=self.ROW_H,   # will be resized dynamically in _render
+            height=self.ROW_H,  # will be resized dynamically in _render
         )
         self.list_frame.pack(side="left", fill="y", padx=(4, 0), pady=4)
 
@@ -211,7 +227,7 @@ class SearchWindow:
             fg_color=BG_PANEL,
             corner_radius=0,
             width=self.DETAIL_W,
-            height=self.ROW_H,   # will be resized dynamically in _render
+            height=self.ROW_H,  # will be resized dynamically in _render
         )
         self.detail.pack(side="right", fill="y", padx=0, pady=0)
         self.detail.pack_propagate(False)
@@ -246,8 +262,8 @@ class SearchWindow:
         for w in self.detail.winfo_children():
             w.destroy()
 
-        ext   = os.path.splitext(res.get("filename", ""))[1].lower()
-        icon  = file_icon(res.get("filename", ""))
+        ext = os.path.splitext(res.get("filename", ""))[1].lower()
+        icon = file_icon(res.get("filename", ""))
 
         pad = ctk.CTkFrame(self.detail, fg_color="transparent")
         pad.pack(fill="both", expand=True, padx=16, pady=16)
@@ -267,36 +283,33 @@ class SearchWindow:
         ).pack(fill="x", pady=(6, 10))
 
         # Metadata rows
-        meta      = res.get("metadata", {})
-        size_b    = meta.get("size", 0)
-        size_str  = (f"{size_b/1024:.1f} KB" if size_b < 1_048_576
-                     else f"{size_b/1_048_576:.1f} MB")
-        mtime     = meta.get("modified", 0)
-        date_str  = (datetime.datetime.fromtimestamp(mtime).strftime("%d %b %Y")
-                     if mtime else "—")
+        meta = res.get("metadata", {})
+        size_b = meta.get("size", 0)
+        size_str = f"{size_b / 1024:.1f} KB" if size_b < 1_048_576 else f"{size_b / 1_048_576:.1f} MB"
+        mtime = meta.get("modified", 0)
+        date_str = datetime.datetime.fromtimestamp(mtime).strftime("%d %b %Y") if mtime else "—"
         score_str = f"{int(res.get('similarity', 0) * 100)}%"
 
         for label, value in [
-            ("Type",     ext.upper().lstrip(".") or "—"),
-            ("Size",     size_str),
+            ("Type", ext.upper().lstrip(".") or "—"),
+            ("Size", size_str),
             ("Modified", date_str),
-            ("Match",    score_str),
+            ("Match", score_str),
         ]:
             r = ctk.CTkFrame(pad, fg_color="transparent")
             r.pack(fill="x", pady=2)
-            ctk.CTkLabel(r, text=label,  font=("Segoe UI", 11),
-                         text_color=TEXT_2, width=60, anchor="w").pack(side="left")
-            ctk.CTkLabel(r, text=value,  font=("Segoe UI", 11),
-                         text_color=TEXT_1, anchor="w").pack(side="left")
+            ctk.CTkLabel(r, text=label, font=("Segoe UI", 11), text_color=TEXT_2, width=60, anchor="w").pack(
+                side="left"
+            )
+            ctk.CTkLabel(r, text=value, font=("Segoe UI", 11), text_color=TEXT_1, anchor="w").pack(side="left")
 
         # Thin rule
         ctk.CTkFrame(pad, fg_color=SEPARATOR, height=1).pack(fill="x", pady=(10, 8))
 
         # Content preview
-        ctk.CTkLabel(pad, text="Preview",
-                     font=("Segoe UI", 11), text_color=TEXT_2, anchor="w").pack(fill="x")
+        ctk.CTkLabel(pad, text="Preview", font=("Segoe UI", 11), text_color=TEXT_2, anchor="w").pack(fill="x")
 
-        raw     = res.get("content", "").strip()
+        raw = res.get("content", "").strip()
         preview = (raw[:200] + "…") if len(raw) > 200 else raw or "No preview available."
         ctk.CTkLabel(
             pad,
@@ -339,6 +352,7 @@ class SearchWindow:
         def run():
             res = self.searcher.search(q, top_k=8)
             self.root.after(0, lambda: self._render(res))
+
         threading.Thread(target=run, daemon=True).start()
 
     # ── Render results ───────────────────────────────────────────
@@ -347,7 +361,7 @@ class SearchWindow:
         for w in self.list_frame.winfo_children():
             w.destroy()
 
-        self.results     = results
+        self.results = results
         self.selected_idx = -1
 
         if not results:
@@ -356,17 +370,15 @@ class SearchWindow:
             return
 
         self._show_body()
-        self.status_lbl.configure(
-            text=f"{len(results)} result{'s' if len(results) > 1 else ''}"
-        )
+        self.status_lbl.configure(text=f"{len(results)} result{'s' if len(results) > 1 else ''}")
 
         for i, r in enumerate(results):
             self._make_row(i, r)
 
         self._select(0)
 
-        rows      = min(len(results), self.MAX_ROWS)
-        content_h = rows * self.ROW_H + 8   # 8 = pady top+bottom on list_frame
+        rows = min(len(results), self.MAX_ROWS)
+        content_h = rows * self.ROW_H + 8  # 8 = pady top+bottom on list_frame
         self.list_frame.configure(height=content_h)
         self.detail.configure(height=content_h)
 
@@ -374,7 +386,7 @@ class SearchWindow:
         self._animate(min(target, self.MAX_H))
 
     def _make_row(self, idx, res):
-        icon  = file_icon(res.get("filename", ""))
+        icon = file_icon(res.get("filename", ""))
         score = int(res.get("similarity", 0) * 100)
 
         row = ctk.CTkFrame(
@@ -387,9 +399,7 @@ class SearchWindow:
         row.pack_propagate(False)
 
         # Icon
-        ctk.CTkLabel(row, text=icon, font=("Segoe UI", 22), width=38).pack(
-            side="left", padx=(6, 2)
-        )
+        ctk.CTkLabel(row, text=icon, font=("Segoe UI", 22), width=38).pack(side="left", padx=(6, 2))
 
         # Text
         txt = ctk.CTkFrame(row, fg_color="transparent")
@@ -404,8 +414,8 @@ class SearchWindow:
         )
         name.pack(fill="x")
 
-        path     = res.get("file_path", "")
-        short_p  = ("…" + path[-40:]) if len(path) > 43 else path
+        path = res.get("file_path", "")
+        short_p = ("…" + path[-40:]) if len(path) > 43 else path
         path_lbl = ctk.CTkLabel(
             txt,
             text=short_p,
@@ -428,12 +438,12 @@ class SearchWindow:
 
         # Events — bind to all children so the whole row is clickable
         for w in (row, txt, name, path_lbl, score_lbl):
-            w.bind("<Enter>",    lambda e, i=idx: self._hover(i))
+            w.bind("<Enter>", lambda e, i=idx: self._hover(i))
             w.bind("<Button-1>", lambda e, i=idx: self._click(i))
 
         # Stash child refs so we can recolour on selection
-        row._name_lbl  = name
-        row._path_lbl  = path_lbl
+        row._name_lbl = name
+        row._path_lbl = path_lbl
         row._score_lbl = score_lbl
 
     # ── Selection logic ──────────────────────────────────────────
@@ -473,8 +483,8 @@ class SearchWindow:
 
     def _bind_keys(self):
         self.root.bind("<Escape>", lambda e: self.root.withdraw())
-        self.root.bind("<Down>",   lambda e: self._move(+1))
-        self.root.bind("<Up>",     lambda e: self._move(-1))
+        self.root.bind("<Down>", lambda e: self._move(+1))
+        self.root.bind("<Up>", lambda e: self._move(-1))
         self.root.bind("<Return>", lambda e: self._open_selected())
 
     def _move(self, delta):
@@ -488,7 +498,7 @@ class SearchWindow:
     # ── Drag to move window ──────────────────────────────────────
 
     def _bind_drag(self):
-        self.shell.bind("<Button-1>",  self._drag_start)
+        self.shell.bind("<Button-1>", self._drag_start)
         self.shell.bind("<B1-Motion>", self._drag_move)
 
     def _drag_start(self, e):
@@ -548,9 +558,10 @@ class SearchWindow:
         def on_cleanup(removed):
             if removed > 0:
                 self.root.after(
-                    0, lambda r=removed: self.status_lbl.configure(
+                    0,
+                    lambda r=removed: self.status_lbl.configure(
                         text=f"Removed {r} deleted file{'s' if r > 1 else ''} from index"
-                    )
+                    ),
                 )
 
         # Throttle UI updates — only refresh every 5 files to avoid flooding
@@ -559,33 +570,22 @@ class SearchWindow:
             if total > 0 and (i % 5 == 0 or i == total):
                 pct = i / total
                 self.root.after(0, lambda p=pct: self.progress.set(p))
-                self.root.after(
-                    0, lambda n=i: self.status_lbl.configure(
-                        text=f"Indexing  {n} / {total}"
-                    )
-                )
+                self.root.after(0, lambda n=i: self.status_lbl.configure(text=f"Indexing  {n} / {total}"))
 
         try:
-            result = self.indexer.index_folder(
-                folder, on_progress=on_progress, on_cleanup=on_cleanup
-            )
+            result = self.indexer.index_folder(folder, on_progress=on_progress, on_cleanup=on_cleanup)
             total = result.files_found
             if not total:
                 self.root.after(
-                    0, lambda: messagebox.showinfo(
-                        "No Files", "No PDF or DOCX files found in that folder."
-                    )
+                    0, lambda: messagebox.showinfo("No Files", "No PDF or DOCX files found in that folder.")
                 )
                 return
 
             self.root.after(
-                0, lambda: messagebox.showinfo(
-                    "Done ✓", f"Indexed {total} file{'s' if total > 1 else ''} successfully."
-                )
+                0,
+                lambda: messagebox.showinfo("Done ✓", f"Indexed {total} file{'s' if total > 1 else ''} successfully."),
             )
-            self.root.after(
-                0, lambda: self.status_lbl.configure(text=f"{total} files indexed")
-            )
+            self.root.after(0, lambda: self.status_lbl.configure(text=f"{total} files indexed"))
 
         except Exception as ex:
             self.root.after(0, lambda e=str(ex): messagebox.showerror("Error", e))
@@ -616,9 +616,9 @@ class SearchWindow:
     def _init_backend(self):
         try:
             engine = create_engine()
-            self.indexer       = engine.indexer
-            self.searcher      = engine.searcher
-            self._ready        = True
+            self.indexer = engine.indexer
+            self.searcher = engine.searcher
+            self._ready = True
             self.root.after(0, self._on_backend_ready)
         except Exception as exc:
             log.exception("Backend init failed")
@@ -627,9 +627,7 @@ class SearchWindow:
     def _on_backend_ready(self):
         self.index_btn.configure(state="normal")
         n = self.indexer.chunk_count()
-        self.status_lbl.configure(
-            text=f"{n} chunks indexed" if n else "Ready  ·  index a folder to start"
-        )
+        self.status_lbl.configure(text=f"{n} chunks indexed" if n else "Ready  ·  index a folder to start")
         self._check_empty_db()
 
     def _on_backend_error(self, msg):

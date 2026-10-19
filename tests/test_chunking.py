@@ -25,7 +25,7 @@ def test_long_text_chunks_are_bounded_and_cover_everything():
 def test_consecutive_chunks_overlap():
     text = ". ".join(f"Sentence number {i} is here" for i in range(300))
     chunks = split_text(text, chunk_size=500, chunk_overlap=50)
-    for prev, nxt in zip(chunks, chunks[1:]):
+    for prev, nxt in zip(chunks, chunks[1:], strict=False):
         assert prev[-50:] == nxt[:50]
 
 
