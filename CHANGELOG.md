@@ -5,6 +5,9 @@ All notable changes to ODF. Format based on [Keep a Changelog](https://keepachan
 ## [Unreleased]
 
 ### Fixed
+- Linux: you can now click into the search box and type. ODF uses a normal window on Linux
+  (the borderless overlay could never receive keyboard focus there); Esc minimises it to the
+  dock instead of hiding it with no way back. Windows keeps the borderless overlay.
 - Linux: the window no longer freezes when a dialog opens (Welcome, folder picker, Done,
   errors). Dialogs opened underneath the always-on-top search bar and blocked all clicks;
   the search bar now hides while a dialog is open.

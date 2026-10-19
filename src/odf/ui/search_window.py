@@ -6,6 +6,7 @@ Spotlight-inspired UI: clean, minimal, two-panel layout.
 import datetime
 import logging
 import os
+import sys
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -29,6 +30,11 @@ from odf.ui.theme import (
 )
 
 log = logging.getLogger(__name__)
+
+# Borderless always-on-top overlay on Windows only. Linux window managers never
+# give keyboard focus to an override-redirect (unmanaged) window — typing can't
+# reach the search box — and dialogs open underneath it. Linux gets a normal window.
+BORDERLESS = sys.platform == "win32"
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -55,16 +61,17 @@ class SearchWindow:
         self.selected_idx = -1
         self.search_timer = None
         self._win_h = self.IDLE_H
+        self._hidden = False  # tracked ourselves: Tk reports a minimised window as "normal" on GNOME
 
     # ── Window lifecycle ─────────────────────────────────────────
 
     def toggle_window(self):
         if not self.root:
             self._build()
-        elif self.root.state() == "withdrawn":
+        elif self._hidden:
             self._reveal()
         else:
-            self.root.withdraw()
+            self._hide()
 
     def show_window(self):
         if not self.root:
@@ -78,10 +85,24 @@ class SearchWindow:
             self.root.after(350, self._check_empty_db)
 
     def _restore(self):
+        self._hidden = False
+        if not BORDERLESS:
+            # Tk still believes a GNOME-minimised window is "normal", so deiconify()
+            # alone is a no-op; unmapping first makes the window manager show it again.
+            self.root.withdraw()
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()
         self.search_entry.focus_set()
+
+    def _hide(self):
+        self._hidden = True
+        # A normal (Linux) window minimises to the dock so it can be clicked back;
+        # the borderless overlay hides and comes back with the global hotkey.
+        if BORDERLESS:
+            self.root.withdraw()
+        else:
+            self.root.iconify()
 
     def _modal(self, show, *args, **kwargs):
         """
@@ -102,8 +123,11 @@ class SearchWindow:
 
     def _build(self):
         self.root = ctk.CTk()
-        self.root.overrideredirect(True)
-        self.root.attributes("-topmost", True)
+        if BORDERLESS:
+            self.root.overrideredirect(True)
+            self.root.attributes("-topmost", True)
+        else:
+            self.root.title("ODF — Offline Document Finder")
         self.root.attributes("-alpha", 0.96)
         self.root.configure(fg_color=BG)
         self._center()
@@ -124,6 +148,8 @@ class SearchWindow:
         self._make_body()  # packed in middle; hidden until results
 
         self._bind_keys()
+        # Restored some other way (e.g. clicking the dock icon) -> no longer hidden
+        self.root.bind("<FocusIn>", lambda e: setattr(self, "_hidden", False), add="+")
         self._bind_drag()
         self.root.after(50, self._start_backend_init)
 
@@ -179,7 +205,7 @@ class SearchWindow:
             height=18,
         )
         esc.pack(side="right", padx=(0, 4))
-        esc.bind("<Button-1>", lambda e: self.root.withdraw())
+        esc.bind("<Button-1>", lambda e: self._hide())
 
     # ── Footer (always visible) ───────────────────────────────────
 
@@ -502,7 +528,7 @@ class SearchWindow:
     # ── Keyboard navigation ──────────────────────────────────────
 
     def _bind_keys(self):
-        self.root.bind("<Escape>", lambda e: self.root.withdraw())
+        self.root.bind("<Escape>", lambda e: self._hide())
         self.root.bind("<Down>", lambda e: self._move(+1))
         self.root.bind("<Up>", lambda e: self._move(-1))
         self.root.bind("<Return>", lambda e: self._open_selected())
