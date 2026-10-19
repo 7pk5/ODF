@@ -7,7 +7,7 @@ name = "odf"
 description = "Offline Document Finder: local, AI-powered semantic search for your documents"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.13"  # pinned numpy 1.26 has no wheels for 3.13+
 dynamic = ["version", "dependencies"]
 
 [project.scripts]

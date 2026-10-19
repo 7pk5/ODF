@@ -3,7 +3,7 @@
 > **Search like you think.** A local-first, AI-powered semantic search engine for your documents — fully offline, no cloud, no telemetry.
 
 [![Build Windows EXE](https://github.com/7pk5/ODF/actions/workflows/build-windows.yml/badge.svg)](https://github.com/7pk5/ODF/actions/workflows/build-windows.yml)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 [![Runs Offline](https://img.shields.io/badge/inference-100%25%20local%20CPU-orange.svg)]()
@@ -260,7 +260,7 @@ pip install -e .                # installs ODF + its pinned dependencies
 python -m odf                   # or just: odf
 ```
 
-Requires Python 3.11+. The embedding model is downloaded to `./models/` on first run.
+Requires Python 3.11 or 3.12 (3.13+ not yet supported by the pinned dependencies). The embedding model is downloaded to `./models/` on first run.
 
 ### Option C — Build the EXE yourself
 

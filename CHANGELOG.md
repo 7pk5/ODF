@@ -14,7 +14,8 @@ All notable changes to ODF. Format based on [Keep a Changelog](https://keepachan
 ### Changed
 - ChromaDB telemetry is explicitly disabled (it already sent nothing in the shipped version).
 - Code moved into an installable `src/odf` package; run from source with `pip install -e .` then `python -m odf`.
-- Dependencies pinned to exact versions; minimum Python is now 3.11.
+- Dependencies pinned to exact versions, with full hashed lock files for Windows and Linux;
+  supported Python versions are 3.11 and 3.12.
 - `odf.log` uses named loggers and no longer fills with HTTP request lines on first launch.
 
 ### Added

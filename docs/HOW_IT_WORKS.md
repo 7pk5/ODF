@@ -199,7 +199,7 @@ Search speed grows slowly with database size because ChromaDB uses HNSW (a fast 
 | CPU | Any modern 64-bit CPU (2015 or newer) |
 | RAM | **4 GB** (2 GB for the OS, ~1.5 GB for the AI model + app) |
 | Disk | 1 GB free (for the app + AI model files) |
-| Python | 3.11 or newer (not needed for EXE) |
+| Python | 3.11 or 3.12 (not needed for EXE) |
 | GPU | **Not required — runs entirely on CPU** |
 | Internet | **Not required at runtime** (only needed on first setup to download the AI model) |
 

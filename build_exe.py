@@ -28,12 +28,17 @@ def build_exe():
                 os.remove(path)
             print(f"Cleaned: {path}")
 
-    # ── 1. Install pinned build + runtime dependencies ───────────
-    #       Same requirements-build.txt that CI uses, so local and
-    #       release builds get identical package versions.
-    req_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "requirements-build.txt")
+    # ── 1. Install locked build + runtime dependencies ───────────
+    #       Same lock file that CI uses, so local and release builds
+    #       get identical package versions (verified by hash).
+    root = os.path.dirname(os.path.abspath(__file__))
+    lock = {"win32": "requirements-windows.lock", "linux": "requirements-linux.lock"}.get(sys.platform)
+    if lock:
+        install = ["--require-hashes", "-r", os.path.join(root, lock)]
+    else:
+        install = ["-r", os.path.join(root, "requirements-build.txt")]  # no lock for this OS
     print("Installing pinned dependencies...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", req_path])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", *install])
 
     # ── 2. (Model is downloaded on first launch by the end user) ──
     #       The AI model is NOT bundled in the EXE — this keeps the
