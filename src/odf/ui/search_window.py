@@ -12,10 +12,8 @@ import datetime
 
 from odf import paths
 from odf.desktop.opener import open_file
-from odf.embedder import Embedder
-from odf.index import file_indexer, scanner
-from odf.index.store import VectorStore
-from odf.search.service import SearchService
+from odf.embedder import model_is_cached
+from odf.engine import create_engine
 from odf.ui.theme import (
     ACCENT, BG, BG_PANEL, HOVER, SELECTED, SEPARATOR, TEXT_1, TEXT_2, file_icon,
 )
@@ -38,7 +36,7 @@ class SearchWindow:
 
     def __init__(self):
         self.root          = None
-        self.store         = None
+        self.indexer       = None
         self.searcher      = None
         self._ready        = False
         self.results       = []
@@ -544,43 +542,38 @@ class SearchWindow:
         threading.Thread(target=self._index_thread, args=(folder,), daemon=True).start()
 
     def _index_thread(self, folder):
-        try:
-            removed = self.store.cleanup_deleted_files()
+        def on_cleanup(removed):
             if removed > 0:
                 self.root.after(
                     0, lambda r=removed: self.status_lbl.configure(
                         text=f"Removed {r} deleted file{'s' if r > 1 else ''} from index"
                     )
                 )
-            self.store.remove_stale_versions()
 
-            files = scanner.scan_directory(folder)
-            if not files:
+        # Throttle UI updates — only refresh every 5 files to avoid flooding
+        # the event queue and freezing the window
+        def on_progress(i, total, name):
+            if total > 0 and (i % 5 == 0 or i == total):
+                pct = i / total
+                self.root.after(0, lambda p=pct: self.progress.set(p))
+                self.root.after(
+                    0, lambda n=i: self.status_lbl.configure(
+                        text=f"Indexing  {n} / {total}"
+                    )
+                )
+
+        try:
+            result = self.indexer.index_folder(
+                folder, on_progress=on_progress, on_cleanup=on_cleanup
+            )
+            total = result.files_found
+            if not total:
                 self.root.after(
                     0, lambda: messagebox.showinfo(
                         "No Files", "No PDF or DOCX files found in that folder."
                     )
                 )
-                self.root.after(0, lambda: self.progress.pack_forget())
                 return
-
-            total    = len(files)
-            existing = self.store.get_all_ids()
-
-            # Throttle UI updates — only refresh every 5 files to avoid flooding
-            # the event queue and freezing the window
-            def on_progress(i, name):
-                if total > 0 and (i % 5 == 0 or i == total):
-                    pct = i / total
-                    self.root.after(0, lambda p=pct: self.progress.set(p))
-                    self.root.after(
-                        0, lambda n=i: self.status_lbl.configure(
-                            text=f"Indexing  {n} / {total}"
-                        )
-                    )
-
-            gen = file_indexer.process_files(files, existing_ids=existing)
-            self.store.add_documents(gen, progress_callback=on_progress)
 
             self.root.after(
                 0, lambda: messagebox.showinfo(
@@ -600,7 +593,7 @@ class SearchWindow:
         if not self._ready:
             return
         try:
-            if self.store.get_stats()["count"] == 0:
+            if self.indexer.chunk_count() == 0:
                 if messagebox.askyesno(
                     "Welcome to ODF",
                     "No documents indexed yet.\nWould you like to index a folder now?",
@@ -612,19 +605,16 @@ class SearchWindow:
     # ── Backend lazy init ─────────────────────────────────────────
 
     def _start_backend_init(self):
-        model_dir = paths.model_cache_dir()
         # If model cache is empty this is a first-run download (~130 MB, one time only)
-        has_model = os.path.isdir(model_dir) and any(os.scandir(model_dir))
-        msg = "Loading AI model…" if has_model else "Downloading AI model (~130 MB, one-time)…"
+        msg = "Loading AI model…" if model_is_cached() else "Downloading AI model (~130 MB, one-time)…"
         self.status_lbl.configure(text=msg)
         threading.Thread(target=self._init_backend, daemon=True).start()
 
     def _init_backend(self):
         try:
-            embedder = Embedder()
-            store = VectorStore(embedder)
-            self.store         = store
-            self.searcher      = SearchService(store, embedder)
+            engine = create_engine()
+            self.indexer       = engine.indexer
+            self.searcher      = engine.searcher
             self._ready        = True
             self.root.after(0, self._on_backend_ready)
         except Exception as exc:
@@ -634,7 +624,7 @@ class SearchWindow:
 
     def _on_backend_ready(self):
         self.index_btn.configure(state="normal")
-        n = self.store.get_stats()["count"]
+        n = self.indexer.chunk_count()
         self.status_lbl.configure(
             text=f"{n} chunks indexed" if n else "Ready  ·  index a folder to start"
         )

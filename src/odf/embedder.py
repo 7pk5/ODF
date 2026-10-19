@@ -3,11 +3,19 @@ Document and Query Embedder
 Handles text embedding using FastEmbed for high-performance semantic search.
 """
 
+import os
+
 from fastembed import TextEmbedding
 import numpy as np
 from typing import List
 
 from odf import paths
+
+
+def model_is_cached():
+    """True if the model was downloaded before; otherwise the first load downloads ~130 MB."""
+    model_dir = paths.model_cache_dir()
+    return os.path.isdir(model_dir) and any(os.scandir(model_dir))
 
 class Embedder:
     def __init__(self, model_name='BAAI/bge-small-en-v1.5'):
