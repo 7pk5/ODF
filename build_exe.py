@@ -8,9 +8,9 @@ Usage:
 """
 
 import os
+import shutil
 import subprocess
 import sys
-import shutil
 
 
 def build_exe():
@@ -46,7 +46,9 @@ def build_exe():
     #       excludes, icon) live in packaging/odf.spec, shared with CI.
     spec_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "packaging", "odf.spec")
     cmd = [
-        sys.executable, "-m", "PyInstaller",
+        sys.executable,
+        "-m",
+        "PyInstaller",
         "--noconfirm",
         "--clean",
         spec_path,
@@ -62,9 +64,7 @@ def build_exe():
     folder_path = os.path.join("dist", "ODF")
     if os.path.exists(exe_path):
         folder_mb = sum(
-            os.path.getsize(os.path.join(dp, f))
-            for dp, _, filenames in os.walk(folder_path)
-            for f in filenames
+            os.path.getsize(os.path.join(dp, f)) for dp, _, filenames in os.walk(folder_path) for f in filenames
         ) / (1024 * 1024)
         print(f"\n{'=' * 60}")
         print("  BUILD SUCCESSFUL")

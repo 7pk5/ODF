@@ -26,3 +26,15 @@ testpaths = ["tests"]
 pythonpath = ["src", "."]
 addopts = "-ra"
 xfail_strict = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, import sorting, bugbear
+select = ["E", "F", "W", "I", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["odf", "tests"]

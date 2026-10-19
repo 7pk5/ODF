@@ -376,10 +376,7 @@ ODF/
 
 Contributions are welcome — the [Roadmap](#roadmap) is a good place to start. For non-trivial changes, please open an issue first to discuss the approach.
 
-1. Fork and create a feature branch.
-2. Keep changes focused; match the existing code style.
-3. Run the test suite (`pip install -r requirements-dev.txt -e .`, then `python -m pytest`) — it's fast, offline, and runs in CI on Windows and Linux. Also test script mode (`python -m odf`) and, for packaging-related changes, the PyInstaller build.
-4. Open a PR with a clear description of the problem and solution.
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for setup, tests, linting and where things live, and [CHANGELOG.md](CHANGELOG.md) for what's changed.
 
 ## License
 
