@@ -5,6 +5,9 @@ All notable changes to ODF. Format based on [Keep a Changelog](https://keepachan
 ## [Unreleased]
 
 ### Fixed
+- Linux: the window no longer freezes when a dialog opens (Welcome, folder picker, Done,
+  errors). Dialogs opened underneath the always-on-top search bar and blocked all clicks;
+  the search bar now hides while a dialog is open.
 - Re-indexing an edited file no longer leaves its old text in search results; existing
   indexes are repaired automatically on the next indexing run.
 - Indexing errors now show an error dialog instead of failing silently.

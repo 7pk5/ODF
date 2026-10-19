@@ -73,12 +73,32 @@ class SearchWindow:
             self._reveal()
 
     def _reveal(self):
+        self._restore()
+        if self._ready:
+            self.root.after(350, self._check_empty_db)
+
+    def _restore(self):
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()
         self.search_entry.focus_set()
-        if self._ready:
-            self.root.after(350, self._check_empty_db)
+
+    def _modal(self, show, *args, **kwargs):
+        """
+        Run a dialog (messagebox / filedialog) with the overlay hidden.
+
+        The overlay is an override-redirect, always-on-top window. On Linux a
+        dialog opens underneath it and drops behind other apps once they get
+        focus, while its input grab leaves the overlay frozen and unclickable.
+        """
+        visible = self.root.state() != "withdrawn"
+        if visible:
+            self.root.withdraw()
+        try:
+            return show(*args, **kwargs)
+        finally:
+            if visible:
+                self._restore()
 
     def _build(self):
         self.root = ctk.CTk()
@@ -533,7 +553,7 @@ class SearchWindow:
     def _browse_folder(self):
         if not self._ready:
             return
-        folder = filedialog.askdirectory()
+        folder = self._modal(filedialog.askdirectory)
         if not folder:
             return
 
@@ -541,7 +561,8 @@ class SearchWindow:
         norm = os.path.normpath(folder)
         drive, tail = os.path.splitdrive(norm)
         if drive and tail in ("\\", "/", ""):
-            proceed = messagebox.askyesno(
+            proceed = self._modal(
+                messagebox.askyesno,
                 "Large Folder Warning",
                 f"You selected an entire drive ({drive}\\).\n\n"
                 "Indexing a whole drive can take a very long time and may slow your PC.\n\n"
@@ -577,18 +598,21 @@ class SearchWindow:
             total = result.files_found
             if not total:
                 self.root.after(
-                    0, lambda: messagebox.showinfo("No Files", "No PDF or DOCX files found in that folder.")
+                    0,
+                    lambda: self._modal(messagebox.showinfo, "No Files", "No PDF or DOCX files found in that folder."),
                 )
                 return
 
             self.root.after(
                 0,
-                lambda: messagebox.showinfo("Done ✓", f"Indexed {total} file{'s' if total > 1 else ''} successfully."),
+                lambda: self._modal(
+                    messagebox.showinfo, "Done ✓", f"Indexed {total} file{'s' if total > 1 else ''} successfully."
+                ),
             )
             self.root.after(0, lambda: self.status_lbl.configure(text=f"{total} files indexed"))
 
         except Exception as ex:
-            self.root.after(0, lambda e=str(ex): messagebox.showerror("Error", e))
+            self.root.after(0, lambda e=str(ex): self._modal(messagebox.showerror, "Error", e))
         finally:
             self.root.after(0, lambda: self.progress.pack_forget())
 
@@ -597,7 +621,8 @@ class SearchWindow:
             return
         try:
             if self.indexer.chunk_count() == 0:
-                if messagebox.askyesno(
+                if self._modal(
+                    messagebox.askyesno,
                     "Welcome to ODF",
                     "No documents indexed yet.\nWould you like to index a folder now?",
                 ):
@@ -633,7 +658,8 @@ class SearchWindow:
     def _on_backend_error(self, msg):
         log_path = paths.log_path()
         self.status_lbl.configure(text="⚠  Model failed to load")
-        messagebox.showerror(
+        self._modal(
+            messagebox.showerror,
             "Startup Error",
             f"Could not load the AI model:\n\n{msg}\n\nLog: {log_path}",
         )
